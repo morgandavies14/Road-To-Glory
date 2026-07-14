@@ -246,37 +246,37 @@ const CLUB_POOL = {
           ["Getafe","Bordalas","direct"],["Toulouse","Casanova","balanced"],["Union SG","Blessin","direct"]],
 };
 const STYLE_ICON = {possession:"POSSESSION", direct:"DIRECT", balanced:"BALANCED"};
-/* one recognizable top-division club per nation: [name, manager, tier, style] — always offered as the first contract */
+/* top-division clubs per nation: [name, manager, tier, style] — all 3 first-contract offers are drawn from here, no repeats */
 const HOME_CLUBS = {
-  Brazil:["Flamengo","Filipe Luís","Big","direct"],
-  Argentina:["River Plate","Gallardo","Big","possession"],
-  France:["Marseille","De Zerbi","Big","possession"],
-  England:["Newcastle","Eddie Howe","Big","direct"],
-  Germany:["Leverkusen","Xabi Alonso","Big","possession"],
-  Portugal:["Benfica","Mourinho","Big","direct"],
-  Spain:["Athletic Bilbao","Valverde","Mid","direct"],
-  Netherlands:["Ajax","Heitinga","Mid","possession"],
-  Belgium:["Club Brugge","Hayen","Mid","possession"],
-  Italy:["AC Milan","Allegri","Big","balanced"],
-  Nigeria:["Enyimba","Yemi Eleshin","Rising","direct"],
-  Croatia:["Dinamo Zagreb","Kovačević","Mid","possession"],
-  Norway:["Bodø/Glimt","Knutsen","Mid","possession"],
-  Morocco:["Wydad AC","Vandenbroeck","Rising","direct"],
-  Wales:["The New Saints","Ruscoe","Rising","balanced"],
-  USA:["Inter Miami","Mascherano","Mid","balanced"],
-  Japan:["Vissel Kobe","Yoshida","Rising","possession"],
-  "South Korea":["Ulsan HD","Kim Pan-gon","Rising","direct"],
-  Senegal:["Casa Sports","Malick Daf","Rising","direct"],
-  Ghana:["Asante Kotoko","Ogum","Rising","direct"],
-  Uruguay:["Peñarol","Aguirre","Mid","direct"],
-  Colombia:["Atlético Nacional","Juárez","Mid","possession"],
-  Mexico:["Club América","Jardine","Mid","possession"],
-  Poland:["Legia Warsaw","Feio","Rising","direct"],
-  Sweden:["Malmö FF","Rydström","Rising","balanced"],
-  Denmark:["FC Copenhagen","Neestrup","Mid","balanced"],
-  Switzerland:["Young Boys","Contini","Rising","balanced"],
-  Egypt:["Al Ahly","Koller","Mid","direct"],
-  Scotland:["Celtic","Rodgers","Mid","possession"],
+  Brazil:[["Flamengo","Filipe Luís","Big","direct"],["Palmeiras","Abel Ferreira","Mid","possession"],["São Paulo","Crespo","Mid","balanced"],["Corinthians","Dorival Júnior","Mid","direct"]],
+  Argentina:[["River Plate","Gallardo","Big","possession"],["Boca Juniors","Úbeda","Mid","direct"],["Racing Club","Costas","Mid","balanced"],["Independiente","Tevez","Mid","direct"]],
+  France:[["Marseille","De Zerbi","Big","possession"],["Lyon","Sage","Mid","balanced"],["Lille","Genesio","Mid","direct"],["Rennes","Habib Beye","Mid","possession"]],
+  England:[["Newcastle","Eddie Howe","Big","direct"],["Tottenham","Postecoglou","Mid","possession"],["Aston Villa","Emery","Mid","balanced"],["West Ham","Potter","Mid","direct"]],
+  Germany:[["Leverkusen","Xabi Alonso","Big","possession"],["RB Leipzig","Rose","Mid","direct"],["Stuttgart","Hoeneß","Mid","possession"],["Frankfurt","Toppmöller","Mid","balanced"]],
+  Portugal:[["Benfica","Mourinho","Big","direct"],["Porto","Martín Anselmi","Mid","possession"],["Sporting CP","Rui Borges","Mid","balanced"],["Braga","Carvalhal","Mid","direct"]],
+  Spain:[["Athletic Bilbao","Valverde","Big","direct"],["Sevilla","García Pimienta","Mid","possession"],["Real Sociedad","Sergio Francisco","Mid","balanced"],["Valencia","Corberán","Mid","direct"]],
+  Netherlands:[["Ajax","Heitinga","Big","possession"],["PSV","Bosz","Mid","direct"],["Feyenoord","Priske","Mid","balanced"],["AZ Alkmaar","Martens","Mid","possession"]],
+  Belgium:[["Club Brugge","Hayen","Mid","possession"],["Anderlecht","Hasi","Rising","balanced"],["Genk","Fink","Rising","direct"],["Gent","Vanderhaeghe","Rising","possession"]],
+  Italy:[["AC Milan","Allegri","Big","balanced"],["Roma","Gasperini","Mid","direct"],["Fiorentina","Pioli","Mid","possession"],["Atalanta","Juric","Mid","direct"]],
+  Nigeria:[["Enyimba","Yemi Eleshin","Rising","direct"],["Rivers United","Eguma","Rising","balanced"],["Kano Pillars","Ibrahim Musa","Rising","direct"],["Remo Stars","Ogunmodede","Rising","possession"]],
+  Croatia:[["Dinamo Zagreb","Kovačević","Mid","possession"],["Hajduk Split","Gattuso","Rising","direct"],["Rijeka","Đalović","Rising","balanced"],["Osijek","Jakirović","Rising","direct"]],
+  Norway:[["Bodø/Glimt","Knutsen","Mid","possession"],["Molde","Erling Moe","Rising","direct"],["Rosenborg","Alfred Johansson","Rising","balanced"],["Brann","Alexandersson","Rising","possession"]],
+  Morocco:[["Wydad AC","Vandenbroeck","Mid","direct"],["Raja Casablanca","Lievremont","Rising","balanced"],["FAR Rabat","Fakhir","Rising","direct"],["RS Berkane","Benzarti","Rising","possession"]],
+  Wales:[["The New Saints","Ruscoe","Rising","balanced"],["Cardiff City","Omer Riza","Rising","direct"],["Swansea City","Sheehan","Rising","possession"],["Newport County","Rowberry","Rising","direct"]],
+  USA:[["Inter Miami","Mascherano","Mid","balanced"],["LA Galaxy","Vanney","Rising","direct"],["Seattle Sounders","Schmetzer","Rising","possession"],["LAFC","Cherundolo","Rising","direct"]],
+  Japan:[["Vissel Kobe","Yoshida","Mid","possession"],["Kawasaki Frontale","Oniki","Rising","direct"],["Yokohama F. Marinos","Holland","Rising","balanced"],["Urawa Red Diamonds","Skorża","Rising","possession"]],
+  "South Korea":[["Ulsan HD","Kim Pan-gon","Mid","direct"],["Jeonbuk Hyundai Motors","Petrescu","Rising","possession"],["FC Seoul","Kim Ki-dong","Rising","balanced"],["Pohang Steelers","Park Tae-ha","Rising","direct"]],
+  Senegal:[["Casa Sports","Malick Daf","Rising","direct"],["Teungueth FC","Dabo","Rising","balanced"],["Jaraaf","Serigne Saliou Dia","Rising","direct"],["Génération Foot","Mady Touré","Rising","possession"]],
+  Ghana:[["Asante Kotoko","Ogum","Rising","direct"],["Hearts of Oak","Matić","Rising","balanced"],["Aduana Stars","Basigi","Rising","direct"],["Medeama","Yaw Preko","Rising","possession"]],
+  Uruguay:[["Peñarol","Aguirre","Mid","direct"],["Nacional","Álvaro Gutiérrez","Rising","balanced"],["Defensor Sporting","Giordano","Rising","direct"],["Danubio","Rodrigo Chagas","Rising","possession"]],
+  Colombia:[["Atlético Nacional","Juárez","Mid","possession"],["Millonarios","Hernán Torres","Rising","direct"],["América de Cali","Lorenzo","Rising","balanced"],["Junior","Arturo Reyes","Rising","direct"]],
+  Mexico:[["Club América","Jardine","Mid","possession"],["Chivas Guadalajara","Gago","Rising","direct"],["Cruz Azul","Vučević","Rising","balanced"],["Monterrey","Domènec Torrent","Rising","possession"]],
+  Poland:[["Legia Warsaw","Feio","Mid","direct"],["Lech Poznań","Frederiksen","Rising","possession"],["Raków Częstochowa","Szwarga","Rising","balanced"],["Pogoń Szczecin","Gustafsson","Rising","direct"]],
+  Sweden:[["Malmö FF","Rydström","Mid","balanced"],["AIK","Bjelica","Rising","direct"],["Djurgården","Olsson","Rising","possession"],["Hammarby","Milojević","Rising","balanced"]],
+  Denmark:[["FC Copenhagen","Neestrup","Mid","balanced"],["Brøndby","Jesper Sørensen","Rising","direct"],["Midtjylland","Thomasberg","Rising","possession"],["Nordsjælland","Hoff Thorup","Rising","balanced"]],
+  Switzerland:[["Young Boys","Contini","Mid","balanced"],["Basel","Ludovic Magnin","Rising","direct"],["Servette","Häberli","Rising","possession"],["Lugano","Croci-Torti","Rising","direct"]],
+  Egypt:[["Al Ahly","Koller","Mid","direct"],["Zamalek","Osama Nabih","Rising","balanced"],["Pyramids FC","Ehab Galal","Rising","possession"],["Al Ittihad","Hossam Hassan","Rising","direct"]],
+  Scotland:[["Celtic","Rodgers","Mid","possession"],["Rangers","Russell Martin","Rising","direct"],["Hearts","Critchley","Rising","balanced"],["Aberdeen","Thelin","Rising","direct"]],
 };
 const HOME_FLAVOR = "Home soil, first professional contract. The whole nation is watching your debut.";
 const FLAVORS = {
@@ -351,26 +351,34 @@ function roleForOffer(tier, reputation){
 
 function bandLabel(v){ return v<40?"LOW":v<70?"MED":"HIGH"; }
 
+function tierStats(tier){
+  const teamQuality = tier==="Elite"?rnd(85,98):tier==="Big"?rnd(70,86):tier==="Mid"?rnd(55,72):rnd(38,58);
+  const trophyChance = tier==="Elite"?rnd(55,80):tier==="Big"?rnd(30,50):tier==="Mid"?rnd(10,25):rnd(2,12);
+  const hype = tier==="Elite"?rnd(80,100):tier==="Big"?rnd(55,75):tier==="Mid"?rnd(30,50):rnd(15,35);
+  return {teamQuality, trophyChance, hype};
+}
+
 function genOffers(){
   const phase = phaseForRound(state.round);
-  const offers = [];
   const usedClubs = new Set(state.log.map(l=>l.club));
   if(state.currentClub) usedClubs.add(state.currentClub.name);
 
+  const homeClubs = HOME_CLUBS[state.country.name];
+  if(state.round === 0 && homeClubs){
+    const picks = [...homeClubs].sort(()=>Math.random()-0.5).slice(0,3);
+    return picks.map(([name,manager,tier,style])=>{
+      const {teamQuality, trophyChance, hype} = tierStats(tier);
+      return {club:name, manager, tier, style, role:"STARTER", roleMeta:ROLE_META.STARTER,
+        teamQuality, trophyChance, hype, flavor:HOME_FLAVOR, revealed:false, isHome:true};
+    });
+  }
+
+  const offers = [];
   const breakoutFlag = state.lastGrade && ["S","A"].includes(state.lastGrade) && state.currentClub && ["Mid","Rising"].includes(state.currentClub.tier);
   const rebuildFlag = state.lastGrade === "D";
 
   let slots = 3;
   let forced = [];
-  const homeClub = HOME_CLUBS[state.country.name];
-  if(state.round === 0 && homeClub){
-    const [name,manager,tier,style] = homeClub;
-    const teamQuality = tier==="Elite"?rnd(85,98):tier==="Big"?rnd(70,86):tier==="Mid"?rnd(55,72):rnd(38,58);
-    const trophyChance = tier==="Elite"?rnd(55,80):tier==="Big"?rnd(30,50):tier==="Mid"?rnd(10,25):rnd(2,12);
-    const hype = tier==="Elite"?rnd(80,100):tier==="Big"?rnd(55,75):tier==="Mid"?rnd(30,50):rnd(15,35);
-    forced.push({club:name, manager, tier, style, role:"STARTER", roleMeta:ROLE_META.STARTER,
-      teamQuality, trophyChance, hype, flavor:HOME_FLAVOR, revealed:false, isHome:true});
-  }
   if(breakoutFlag){
     const tier = Math.random()<0.5?"Elite":"Big";
     const [name,manager,style] = pick(CLUB_POOL[tier]);
@@ -388,16 +396,16 @@ function genOffers(){
   }
   slots -= forced.length;
 
+  const pickedNames = new Set(forced.map(f=>f.club));
   for(let i=0;i<slots;i++){
     const tier = pickTier(phase);
     const clubs = CLUB_POOL[tier];
     let choice = pick(clubs), tries=0;
-    while(usedClubs.has(choice[0]) && tries<6){ choice = pick(clubs); tries++; }
+    while((usedClubs.has(choice[0]) || pickedNames.has(choice[0])) && tries<20){ choice = pick(clubs); tries++; }
     const [name,manager,style] = choice;
     const role = roleForOffer(tier, state.reputation);
-    const teamQuality = tier==="Elite"?rnd(85,98):tier==="Big"?rnd(70,86):tier==="Mid"?rnd(55,72):rnd(38,58);
-    const trophyChance = tier==="Elite"?rnd(55,80):tier==="Big"?rnd(30,50):tier==="Mid"?rnd(10,25):rnd(2,12);
-    const hype = tier==="Elite"?rnd(80,100):tier==="Big"?rnd(55,75):tier==="Mid"?rnd(30,50):rnd(15,35);
+    const {teamQuality, trophyChance, hype} = tierStats(tier);
+    pickedNames.add(name);
     forced.push({club:name, manager, tier, style, role, roleMeta:ROLE_META[role], teamQuality, trophyChance, hype, flavor:pick(FLAVORS[tier]), revealed:false});
   }
 
