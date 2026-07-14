@@ -101,6 +101,25 @@
   .rep-delta{text-align:center; font-family:'Press Start 2P',monospace; font-size:12px; margin-top:8px;}
   .rep-delta.up{color:var(--green);} .rep-delta.down{color:var(--red);}
   .scout-note{font-size:16px; color:var(--dim); text-align:center; margin-top:10px; line-height:1.4; font-style:italic;}
+  .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px;}
+  .stat-cell{background:#000; border:2px solid var(--dim); padding:8px 4px; text-align:center;}
+  .stat-cell .v{font-family:'Press Start 2P',monospace; font-size:16px; color:var(--gold);}
+  .stat-cell .k{font-size:12px; color:var(--dim); margin-top:2px;}
+  .vote-panel{background:#000; border:4px solid var(--dim); padding:14px; margin-top:12px; text-align:center;}
+  .vote-panel.you-win{border-color:var(--gold);}
+  .vote-title.px{font-size:12px; margin-bottom:8px;}
+  .vote-title.you-win{color:var(--gold);}
+  .vote-title.rival-win{color:var(--dim);}
+  .vote-bars{display:flex; flex-direction:column; gap:8px; margin-top:6px;}
+  .vote-row{display:flex; align-items:center; gap:8px;}
+  .vote-row .who{font-family:'Press Start 2P',monospace; font-size:8px; width:70px; text-align:left; color:var(--paper);}
+  .vote-row .track{flex:1; height:14px; background:var(--panel); border:2px solid #000;}
+  .vote-row .fill{height:100%;}
+  .vote-row.you .fill{background:var(--gold);}
+  .vote-row.rival .fill{background:var(--red);}
+  .vote-row .val{font-family:'Press Start 2P',monospace; font-size:9px; width:34px; text-align:right; color:var(--dim);}
+  .tally-line{font-family:'Press Start 2P',monospace; font-size:11px; margin-top:12px; color:var(--paper);}
+  .tally-line b.you{color:var(--gold);} .tally-line b.rival{color:var(--red);}
   .log-entry{background:var(--panel); border:3px solid #000; border-left:6px solid var(--gold); padding:10px 12px; font-size:16px; color:var(--paper); margin-bottom:8px; line-height:1.35;}
   .log-entry b{color:var(--gold);}
   .log-entry .g{font-family:'Press Start 2P',monospace; font-size:9px; padding:2px 5px; margin-left:6px;}
@@ -120,16 +139,10 @@
   .confetti{position:fixed; top:-10px; width:8px; height:10px; z-index:95; animation:fall linear forwards;}
   @keyframes fall{to{transform:translateY(110vh) rotate(360deg); opacity:0.3;}}
   .footer-note{font-size:14px; color:var(--dim); text-align:center;}
+  .share-canvas-wrap{display:flex; justify-content:center; background:#000; border:4px solid #000; padding:8px;}
+  #shareCanvas{width:100%; max-width:400px; image-rendering:pixelated;}
   .badge-row{display:flex; gap:6px; flex-wrap:wrap;}
   .badge.px{font-size:8px; color:#000; background:var(--green); padding:5px 7px; border:2px solid #000;}
-  .stat-panel{padding:12px;}
-  .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
-  .stat-item{display:flex; flex-direction:column; align-items:center; gap:2px;}
-  .stat-ico{font-size:20px;}
-  .stat-num{font-size:14px; color:var(--gold);}
-  .stat-lbl{font-size:7px; color:var(--dim);}
-  .log-stats{font-size:13px; color:var(--dim); margin-top:5px;}
-  .career-totals{margin-bottom:14px;}
 </style>
 </head>
 <body>
@@ -168,6 +181,18 @@ const TROPHY_GRID = ["..yyyy..",".yyyyyy.","yyyyyyyy","yyyyyyyy",".yyyyyy.","..y
 const TROPHY_PALETTE = {y:"#ffd23f"};
 const TIER_JERSEY = {Elite:"#ffd23f", Big:"#3fa7ff", Mid:"#3ddc46", Rising:"#a25dff"};
 
+function drawSpriteCanvas(ctx, grid, palette, px, ox, oy){
+  for(let y=0;y<grid.length;y++){
+    for(let x=0;x<grid[y].length;x++){
+      const ch = grid[y][x];
+      if(ch!=='.' && palette[ch]){
+        ctx.fillStyle = palette[ch];
+        ctx.fillRect(ox+x*px, oy+y*px, px, px);
+      }
+    }
+  }
+}
+
 /* ---------- DATA ---------- */
 const COUNTRIES = [
   {name:"Brazil", flag:"🇧🇷", stat:"CRE", note:"Flair"},{name:"Argentina", flag:"🇦🇷", stat:"CRE", note:"Craft"},
@@ -177,13 +202,14 @@ const COUNTRIES = [
   {name:"Belgium", flag:"🇧🇪", stat:"CRE", note:"Gen."},{name:"Italy", flag:"🇮🇹", stat:"DEF", note:"Catenaccio"},
   {name:"Nigeria", flag:"🇳🇬", stat:"FIN", note:"Explosive"},{name:"Croatia", flag:"🇭🇷", stat:"CRE", note:"Grit"},
   {name:"Norway", flag:"🇳🇴", stat:"FIN", note:"Ruthless"},{name:"Morocco", flag:"🇲🇦", stat:"DEF", note:"Rising"},
-  {name:"Wales", flag:"🏴󠁧󠁢󠁷󠁬󠁳󠁿", stat:"CRE", note:"Passion"},{name:"Scotland", flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", stat:"DEF", note:"Grit"},
-  {name:"Uruguay", flag:"🇺🇾", stat:"DEF", note:"Garra"},{name:"USA", flag:"🇺🇸", stat:"HYPE", note:"Hustle"},
-  {name:"Turkey", flag:"🇹🇷", stat:"HYPE", note:"Passion"},{name:"Japan", flag:"🇯🇵", stat:"CRE", note:"Discipline"},
-  {name:"South Korea", flag:"🇰🇷", stat:"FIN", note:"Speed"},{name:"Senegal", flag:"🇸🇳", stat:"FIN", note:"Power"},
-  {name:"Ghana", flag:"🇬🇭", stat:"CRE", note:"Skill"},{name:"Egypt", flag:"🇪🇬", stat:"FIN", note:"Flash"},
-  {name:"Sweden", flag:"🇸🇪", stat:"DEF", note:"Structure"},{name:"Poland", flag:"🇵🇱", stat:"FIN", note:"Poacher"},
-  {name:"Serbia", flag:"🇷🇸", stat:"CRE", note:"Physical"},
+  {name:"Wales", flag:"🏴󠁧󠁢󠁷󠁬󠁳󠁿", stat:"DEF", note:"Dragon's Heart"},
+  {name:"USA", flag:"🇺🇸", stat:"FIN", note:"Athletic"},{name:"Japan", flag:"🇯🇵", stat:"CRE", note:"Discipline"},
+  {name:"South Korea", flag:"🇰🇷", stat:"FIN", note:"Relentless"},{name:"Senegal", flag:"🇸🇳", stat:"FIN", note:"Power"},
+  {name:"Ghana", flag:"🇬🇭", stat:"CRE", note:"Flair"},{name:"Uruguay", flag:"🇺🇾", stat:"DEF", note:"Garra"},
+  {name:"Colombia", flag:"🇨🇴", stat:"CRE", note:"Rhythm"},{name:"Mexico", flag:"🇲🇽", stat:"CRE", note:"Craft"},
+  {name:"Poland", flag:"🇵🇱", stat:"FIN", note:"Clinical"},{name:"Sweden", flag:"🇸🇪", stat:"FIN", note:"Ice Cold"},
+  {name:"Denmark", flag:"🇩🇰", stat:"DEF", note:"Structure"},{name:"Switzerland", flag:"🇨🇭", stat:"DEF", note:"Precision"},
+  {name:"Egypt", flag:"🇪🇬", stat:"FIN", note:"Pharaoh"},{name:"Scotland", flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", stat:"DEF", note:"Backs to the Wall"},
 ];
 const POSITIONS = [
   {code:"GK", name:"Goalkeeper", w:{FIN:0.1,CRE:0.1,DEF:1.4,HYPE:0.6}, note:"Hardest bar in the sport."},
@@ -195,6 +221,18 @@ const POSITIONS = [
   {code:"W", name:"Winger", w:{FIN:1.2,CRE:1.1,DEF:0.2,HYPE:1.1}, note:"Highlight reels."},
   {code:"ST", name:"Striker", w:{FIN:1.4,CRE:0.5,DEF:0.1,HYPE:1.2}, note:"Goals win Ballon d'Ors."},
 ];
+/* per-position season stat rates: per-appearance base rates at "average" performance */
+const STAT_RATES = {
+  GK:{goal:0.00, assist:0.00, yellow:0.05, clean:0.38},
+  CB:{goal:0.04, assist:0.04, yellow:0.22, clean:0.34},
+  FB:{goal:0.07, assist:0.18, yellow:0.18, clean:0.28},
+  DM:{goal:0.06, assist:0.14, yellow:0.24, clean:0.24},
+  CM:{goal:0.16, assist:0.28, yellow:0.14, clean:0.14},
+  AM:{goal:0.32, assist:0.36, yellow:0.10, clean:0.08},
+  W: {goal:0.38, assist:0.32, yellow:0.08, clean:0.06},
+  ST:{goal:0.58, assist:0.16, yellow:0.09, clean:0.04},
+};
+
 /* club tuples: [name, manager, style]  style: possession | direct | balanced */
 const CLUB_POOL = {
   Elite:[["Real Madrid","Ancelotti","possession"],["Man City","Guardiola","possession"],["Bayern Munich","Kompany","direct"],
@@ -242,6 +280,7 @@ function resetState(){
     currentClub:null, lastGrade:null, currentOffers:[], finalScore:0,
     pendingSummary:null,
     careerStats:{apps:0, goals:0, assists:0, yellows:0, reds:0, cleanSheets:0},
+    rival:null, playerBallonDors:0, rivalBallonDors:0, rivalTrophies:0, timeline:[],
   };
 }
 
@@ -372,23 +411,25 @@ function render(){
   if(state.screen==="intro") renderIntro(screen);
   else if(state.screen==="country") renderCountry(screen);
   else if(state.screen==="position") renderPosition(screen);
+  else if(state.screen==="rivalReveal") renderRivalReveal(screen);
   else if(state.screen==="draft") renderDraft(screen);
   else if(state.screen==="summary") renderSummary(screen);
   else if(state.screen==="results") renderResults(screen);
+  else if(state.screen==="share") renderShare(screen);
 }
 
 function renderIntro(s){
   s.innerHTML = `<div class="eyebrow px">A 15-YEAR CAREER DRAFT</div>`;
   const h1=document.createElement('h1'); h1.className='px'; h1.textContent="WIN THE BALLON D'OR"; s.appendChild(h1);
   const lead=document.createElement('p'); lead.className='lead';
-  lead.textContent="Pick your country. Pick your position. Draft 15 seasons, age 18 to 32 — every contract is a gamble, every season a dice roll, and your reputation decides what's on offer next.";
+  lead.textContent="Somewhere out there, the best player alive is already becoming a legend. Pick your country, pick your position, and draft 15 seasons trying to overtake them — one Ballon d'Or vote at a time.";
   s.appendChild(lead);
   const heroPanel=document.createElement('div'); heroPanel.className='pixel-panel';
   const heroRow=document.createElement('div'); heroRow.className='hero-row';
   heroRow.appendChild(spriteEl(SOCRATES_GRID, SOCRATES_PALETTE, 6));
   heroPanel.appendChild(heroRow);
   const cap=document.createElement('div'); cap.className='hero-caption';
-  cap.innerHTML=`<b>DOCTOR SÓCRATES</b><br>the original No.10 — headband, cigarette break, backheel assist. every save file starts in his shadow.`;
+  cap.innerHTML=`<b>DOCTOR SÓCRATES</b><br>legends like this walked the road before you — headband, cigarette break, backheel assist. but your real fight is with someone still playing.`;
   heroPanel.appendChild(cap); s.appendChild(heroPanel);
   const badges=document.createElement('div'); badges.className='pixel-panel';
   badges.innerHTML=`<div class="badge-row">
@@ -425,9 +466,33 @@ function renderPosition(s){
     el.onclick=()=>{ state.position=p; [...wrap.children].forEach(x=>x.classList.remove("selected")); el.classList.add("selected"); nextBtn.disabled=false; };
     wrap.appendChild(el);
   });
-  const nextBtn=document.createElement('button'); nextBtn.className='btn'; nextBtn.textContent='START CAREER'; nextBtn.disabled=true;
-  nextBtn.onclick=()=>{ state.screen="draft"; state.currentOffers = genOffers(); render(); };
+  const nextBtn=document.createElement('button'); nextBtn.className='btn'; nextBtn.textContent='MEET YOUR RIVAL'; nextBtn.disabled=true;
+  nextBtn.onclick=()=>{ state.rival = generateRival(); state.screen="rivalReveal"; render(); };
   s.appendChild(nextBtn);
+}
+
+function generateRival(){
+  const country = pick(COUNTRIES);
+  const position = pick(POSITIONS);
+  const talent = rnd(62,92);
+  return {name: pick(RIVAL_FIRST)+" "+pick(RIVAL_LAST), country, position, talent};
+}
+
+function renderRivalReveal(s){
+  const r = state.rival;
+  s.innerHTML = `<div class="eyebrow px">SCOUTING REPORT</div>`;
+  const h2=document.createElement('h2'); h2.className='px'; h2.textContent='YOUR RIVAL'; s.appendChild(h2);
+  const panel=document.createElement('div'); panel.className='pixel-panel';
+  const heroRow=document.createElement('div'); heroRow.className='hero-row';
+  heroRow.appendChild(spriteEl(PLAYER_GRID, playerPalette("#ff4d5e"), 7));
+  panel.appendChild(heroRow);
+  const cap=document.createElement('div'); cap.className='hero-caption';
+  cap.innerHTML = `<b>${r.country.flag} ${r.name}</b><br>${r.position.name} · already being called the best in the world.<br>15 years. same clock. only one of you ends up with more Ballon d'Ors.`;
+  panel.appendChild(cap);
+  s.appendChild(panel);
+  const btn=document.createElement('button'); btn.className='btn'; btn.textContent='BEGIN YOUR RISE';
+  btn.onclick=()=>{ state.screen="draft"; state.currentOffers = genOffers(); render(); };
+  s.appendChild(btn);
 }
 
 function renderDraft(s){
@@ -572,25 +637,27 @@ function applySeason(offer, form, fitness, eventEffect){
 
   state.stats.FIN += gainFIN; state.stats.CRE += gainCRE; state.stats.DEF += gainDEF; state.stats.HYPE += gainHYPE;
 
+  /* season match stats */
+  const rates = STAT_RATES[state.position.code];
+  const appearances = clamp(Math.round(38 * roleMeta.minutesMult * (0.45 + fitness/11)), 3, 38);
+  const formFactor = 0.55 + perf*0.9; // scales with how well the dice roll went
+  const teamFactor = offer.teamQuality/70;
+  const goals = Math.max(0, Math.round(appearances * rates.goal * formFactor * teamFactor * styleMult.FIN));
+  const assists = Math.max(0, Math.round(appearances * rates.assist * formFactor * teamFactor * styleMult.CRE));
+  const yellows = clamp(Math.round(appearances * rates.yellow * (1.3 - perf*0.5) * (Math.random()*0.4+0.8)), 0, appearances);
+  const reds = Math.random() < (0.05 + rates.yellow*0.08) * (1.2-perf) ? 1 : 0;
+  const cleanSheets = Math.max(0, Math.round(appearances * rates.clean * teamFactor * (0.6+perf*0.6)));
+  const seasonStats = {appearances, goals, assists, yellows, reds, cleanSheets};
+
+  state.careerStats.apps += appearances; state.careerStats.goals += goals; state.careerStats.assists += assists;
+  state.careerStats.yellows += yellows; state.careerStats.reds += reds; state.careerStats.cleanSheets += cleanSheets;
+
   let trophyWon = null;
   if(rnd(1,100) <= offer.trophyChance){
     trophyWon = pick(["League Title","Champions League","Domestic Cup","Continental Treble"]);
     state.trophies.push(trophyWon);
     state.stats.HYPE += 12;
   }
-
-  const roleMinutes = roleMeta.minutesMult || 1;
-  const apps = clamp(Math.round(38 * roleMinutes * clamp(mult,0.3,1.3)), 3, 38);
-  const qFactor = offer.teamQuality/100;
-  const goals = Math.max(0, Math.round(pos.FIN * qFactor * mult * rnd(14,22)));
-  const assists = Math.max(0, Math.round(pos.CRE * qFactor * mult * rnd(10,16)));
-  const cleanSheets = clamp(Math.round(pos.DEF * qFactor * apps * 0.35), 0, apps);
-  const yellows = clamp(Math.round(rnd(1,6) + pos.DEF*2), 0, 12);
-  const redChance = 5 + pos.DEF*4;
-  const reds = rnd(1,100) <= redChance ? (rnd(1,100)<=15?2:1) : 0;
-  const seasonStats = {apps, goals, assists, cleanSheets, yellows, reds};
-  state.careerStats.apps += apps; state.careerStats.goals += goals; state.careerStats.assists += assists;
-  state.careerStats.cleanSheets += cleanSheets; state.careerStats.yellows += yellows; state.careerStats.reds += reds;
 
   const tierAdj = {Elite:-1, Big:-0.5, Mid:0, Rising:1}[offer.tier];
   let delta = (form+fitness) - roleMeta.baseline - tierAdj;
@@ -607,11 +674,25 @@ function applySeason(offer, form, fitness, eventEffect){
   state.currentClub = {name:offer.club, manager:offer.manager, tier:offer.tier, style:offer.style,
     teamQuality:offer.teamQuality, trophyChance:offer.trophyChance, hype:offer.hype};
 
+  /* this year's Ballon d'Or vote: you vs your rival */
+  const seasonScore = Math.round(gainFIN*pos.FIN*0.6 + gainCRE*pos.CRE*0.6 + gainDEF*pos.DEF*0.6 + gainHYPE*0.5 + (trophyWon?14:0));
+  const phase = phaseForRound(state.round);
+  const rivalPhaseMult = {breakthrough:0.75, rise:0.95, prime:1.15, twilight:0.9}[phase];
+  const rivalPerf = 0.6 + Math.random()*0.8;
+  const rival = state.rival;
+  let rivalScore = Math.round(rival.talent * rivalPhaseMult * rivalPerf);
+  const rivalTrophyChance = clamp(rival.talent-25, 5, 75);
+  const rivalTrophyWon = rnd(1,100) <= rivalTrophyChance;
+  if(rivalTrophyWon){ rivalScore += 14; state.rivalTrophies++; }
+  const winner = seasonScore >= rivalScore ? "YOU" : "RIVAL";
+  if(winner==="YOU") state.playerBallonDors++; else state.rivalBallonDors++;
+  state.timeline.push({year:state.round+1, age:START_AGE+state.round, grade, trophyWon:!!trophyWon, seasonScore, rivalScore, rivalTrophyWon, winner});
+
   const note = pick(GRADE_NOTE[grade]);
-  state.log.push({club:offer.club, grade, stats:seasonStats,
+  state.log.push({club:offer.club, grade, seasonStats,
     text:`<b>${offer.club}</b> (Year ${state.round+1}, age ${START_AGE+state.round}) — ${roleMeta.label}. ${note}${trophyWon? ` Lifted the ${trophyWon}!`:''}`});
 
-  state.pendingSummary = {grade, repDelta, note, trophyWon, club:offer.club, stats:seasonStats};
+  state.pendingSummary = {grade, repDelta, note, trophyWon, club:offer.club, seasonStats, seasonScore, rivalScore, rivalTrophyWon, winner};
   state.round++;
   state.screen = "summary";
   render();
@@ -628,19 +709,40 @@ function renderSummary(s){
   noteEl.textContent = `"${p.note}"${p.trophyWon? ` Lifted the ${p.trophyWon}.`:''}`;
   s.appendChild(noteEl);
 
-  const statPanel=document.createElement('div'); statPanel.className='pixel-panel stat-panel';
-  const st=p.stats;
-  statPanel.innerHTML = `<div class="stat-grid">
-    <div class="stat-item"><span class="stat-ico">&#9917;</span><span class="stat-num px">${st.goals}</span><span class="stat-lbl px">GOALS</span></div>
-    <div class="stat-item"><span class="stat-ico">&#127919;</span><span class="stat-num px">${st.assists}</span><span class="stat-lbl px">ASSISTS</span></div>
-    <div class="stat-item"><span class="stat-ico">&#128992;</span><span class="stat-num px">${st.yellows}</span><span class="stat-lbl px">YELLOWS</span></div>
-    <div class="stat-item"><span class="stat-ico">&#128308;</span><span class="stat-num px">${st.reds}</span><span class="stat-lbl px">REDS</span></div>
-    <div class="stat-item"><span class="stat-ico">&#129508;</span><span class="stat-num px">${st.cleanSheets}</span><span class="stat-lbl px">CLEAN SH.</span></div>
-    <div class="stat-item"><span class="stat-ico">&#128100;</span><span class="stat-num px">${st.apps}</span><span class="stat-lbl px">APPS</span></div>
-  </div>`;
-  s.appendChild(statPanel);
+  const ss = p.seasonStats;
+  const statGrid=document.createElement('div'); statGrid.className='stat-grid';
+  const cells = [
+    ["APPS", ss.appearances], ["GOALS", ss.goals], ["ASSISTS", ss.assists],
+    ["YELLOWS", ss.yellows], ["REDS", ss.reds], ["CLEAN SHEETS", ss.cleanSheets],
+  ];
+  cells.forEach(([k,v])=>{
+    const cell=document.createElement('div'); cell.className='stat-cell';
+    cell.innerHTML = `<div class="v">${v}</div><div class="k">${k}</div>`;
+    statGrid.appendChild(cell);
+  });
+  s.appendChild(statGrid);
 
-  const btn=document.createElement('button'); btn.className='btn';
+  const won = p.winner==="YOU";
+  const votePanel=document.createElement('div'); votePanel.className='vote-panel'+(won?' you-win':'');
+  const vt=document.createElement('div'); vt.className='vote-title px '+(won?'you-win':'rival-win');
+  vt.textContent = won ? "★ YOU WIN THIS YEAR'S BALLON D'OR" : `${state.rival.name.toUpperCase()} WINS THIS YEAR'S BALLON D'OR`;
+  votePanel.appendChild(vt);
+  const maxV = Math.max(p.seasonScore, p.rivalScore, 10);
+  const bars=document.createElement('div'); bars.className='vote-bars';
+  bars.innerHTML = `
+    <div class="vote-row you"><div class="who">YOU</div><div class="track"><div class="fill" style="width:${(p.seasonScore/maxV)*100}%"></div></div><div class="val">${p.seasonScore}</div></div>
+    <div class="vote-row rival"><div class="who">${state.rival.name.split(' ')[0].toUpperCase()}</div><div class="track"><div class="fill" style="width:${(p.rivalScore/maxV)*100}%"></div></div><div class="val">${p.rivalScore}</div></div>
+  `;
+  votePanel.appendChild(bars);
+  const ticker=document.createElement('div'); ticker.className='scout-note'; ticker.style.marginTop='10px';
+  ticker.textContent = `Meanwhile, ${state.rival.name}${p.rivalTrophyWon? ' lifted a trophy and':''} put up ${p.rivalScore} pts this year.`;
+  votePanel.appendChild(ticker);
+  const tally=document.createElement('div'); tally.className='tally-line';
+  tally.innerHTML = `BALLON D'ORS — <b class="you">YOU ${state.playerBallonDors}</b> · <b class="rival">${state.rival.name.split(' ')[0].toUpperCase()} ${state.rivalBallonDors}</b>`;
+  votePanel.appendChild(tally);
+  s.appendChild(votePanel);
+
+  const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='6px';
   if(state.round >= TOTAL_ROUNDS){
     btn.textContent='SEE CAREER RESULT';
     btn.onclick = ()=> finalizeCareer();
@@ -656,22 +758,25 @@ function finalizeCareer(){
   let score = st.FIN*pos.FIN*0.6 + st.CRE*pos.CRE*0.6 + st.DEF*pos.DEF*0.6 + st.HYPE*0.5;
   score += state.trophies.length * 14;
   score += state.peakReputation * 0.5;
-  score = Math.round(score);
-  state.finalScore = score;
-  const rivals=[];
-  for(let i=0;i<5;i++){ const base=rnd(Math.max(20,score-70), score+90); rivals.push({name:pick(RIVAL_FIRST)+" "+pick(RIVAL_LAST), score:Math.max(15,base)}); }
-  state.rivals = rivals;
+  state.finalScore = Math.round(score);
   state.screen="results"; render();
 }
 
 function renderResults(s){
-  const field = [...state.rivals, {name:"YOU", score:state.finalScore, you:true}].sort((a,b)=>b.score-a.score);
-  const rank = field.findIndex(f=>f.you)+1;
-  const won = rank===1;
+  const you = state.playerBallonDors, riv = state.rivalBallonDors;
+  const won = you > riv;
+  const tied = you === riv;
   s.innerHTML = `<div class="eyebrow px">CAREER COMPLETE — 15 SEASONS</div>`;
   const h2=document.createElement('h2'); h2.className='px'; h2.textContent=`${state.country.flag} ${state.position.name}`; s.appendChild(h2);
+
   const scoreboard=document.createElement('div'); scoreboard.className='scoreboard';
-  scoreboard.innerHTML=`<div class="score-num">${state.finalScore}</div><div class="score-lbl px">BALLON D'OR POINTS · ${state.trophies.length} TROPHIES · PEAK REP ${state.peakReputation}</div>`;
+  scoreboard.innerHTML=`
+    <div style="display:flex; justify-content:center; gap:26px; align-items:baseline;">
+      <div><div class="score-num" style="color:var(--gold);">${you}</div><div class="score-lbl px">YOU</div></div>
+      <div class="px" style="font-size:16px; color:var(--dim);">VS</div>
+      <div><div class="score-num" style="color:var(--red);">${riv}</div><div class="score-lbl px">${state.rival.name.split(' ')[0].toUpperCase()}</div></div>
+    </div>
+    <div class="score-lbl px" style="margin-top:10px;">BALLON D'ORS WON, HEAD TO HEAD</div>`;
   s.appendChild(scoreboard);
 
   if(won){
@@ -687,40 +792,38 @@ function renderResults(s){
   }
 
   const verdict=document.createElement('div'); verdict.className='verdict px'+(won?' win':'');
-  verdict.textContent = won ? "★ YOU WON THE BALLON D'OR ★" : `YOU FINISHED #${rank} OF 6`;
+  verdict.textContent = won ? "★ GREATEST OF YOUR GENERATION ★" : tied ? "A LEGENDARY RIVALRY" : `IN THE SHADOW OF ${state.rival.name.toUpperCase()}`;
   s.appendChild(verdict);
 
-  const h3a=document.createElement('h3'); h3a.className='px'; h3a.textContent='FINAL STANDINGS'; s.appendChild(h3a);
-  const ranksEl=document.createElement('div'); s.appendChild(ranksEl);
-  field.forEach((f,i)=>{
-    const row=document.createElement("div"); row.className="rank-row"+(f.you?" you":"");
-    row.innerHTML=`<div class="rank-num px">${i+1}</div><div class="rank-name">${f.name}</div><div class="rank-pts px">${f.score}</div>`;
-    ranksEl.appendChild(row);
+  const h3t=document.createElement('h3'); h3t.className='px'; h3t.textContent='YEAR BY YEAR'; s.appendChild(h3t);
+  const timelineEl=document.createElement('div'); s.appendChild(timelineEl);
+  state.timeline.forEach(t=>{
+    const row=document.createElement("div"); row.className="rank-row"+(t.winner==="YOU"?" you":"");
+    row.innerHTML = `<div class="rank-num px">${t.age}</div>
+      <div class="rank-name">Y${t.year} · ${t.grade}${t.trophyWon?' 🏆':''}</div>
+      <div class="rank-pts px">${t.winner==="YOU"? "★ YOU":"RIVAL"}</div>`;
+    timelineEl.appendChild(row);
   });
 
   const cs = state.careerStats;
-  const totalsPanel=document.createElement('div'); totalsPanel.className='pixel-panel career-totals';
-  totalsPanel.innerHTML = `<h3 class="px" style="margin-bottom:8px;">CAREER TOTALS</h3><div class="stat-grid">
-    <div class="stat-item"><span class="stat-ico">&#9917;</span><span class="stat-num px">${cs.goals}</span><span class="stat-lbl px">GOALS</span></div>
-    <div class="stat-item"><span class="stat-ico">&#127919;</span><span class="stat-num px">${cs.assists}</span><span class="stat-lbl px">ASSISTS</span></div>
-    <div class="stat-item"><span class="stat-ico">&#128992;</span><span class="stat-num px">${cs.yellows}</span><span class="stat-lbl px">YELLOWS</span></div>
-    <div class="stat-item"><span class="stat-ico">&#128308;</span><span class="stat-num px">${cs.reds}</span><span class="stat-lbl px">REDS</span></div>
-    <div class="stat-item"><span class="stat-ico">&#129508;</span><span class="stat-num px">${cs.cleanSheets}</span><span class="stat-lbl px">CLEAN SH.</span></div>
-    <div class="stat-item"><span class="stat-ico">&#128100;</span><span class="stat-num px">${cs.apps}</span><span class="stat-lbl px">APPS</span></div>
-  </div>`;
-  s.appendChild(totalsPanel);
+  const h3s=document.createElement('h3'); h3s.className='px'; h3s.textContent='CAREER TOTALS'; s.appendChild(h3s);
+  const csGrid=document.createElement('div'); csGrid.className='stat-grid';
+  [["TROPHIES",state.trophies.length],["GOALS",cs.goals],["ASSISTS",cs.assists],["APPS",cs.apps],["CLEAN SHEETS",cs.cleanSheets],["PEAK REP",state.peakReputation]].forEach(([k,v])=>{
+    const cell=document.createElement('div'); cell.className='stat-cell';
+    cell.innerHTML = `<div class="v">${v}</div><div class="k">${k}</div>`;
+    csGrid.appendChild(cell);
+  });
+  s.appendChild(csGrid);
 
-  const shareBtn=document.createElement('button'); shareBtn.className='btn alt'; shareBtn.textContent='SHARE CAREER CARD';
-  shareBtn.style.marginBottom='14px';
-  shareBtn.onclick=()=>shareCareerCard(field, rank, won);
+  const shareBtn=document.createElement('button'); shareBtn.className='btn'; shareBtn.style.marginTop='6px'; shareBtn.textContent='📤 SHARE CARD';
+  shareBtn.onclick = ()=>{ state.screen='share'; state.resultsWon=won; state.resultsTied=tied; render(); };
   s.appendChild(shareBtn);
 
   const h3b=document.createElement('h3'); h3b.className='px'; h3b.textContent='CAREER LOG'; s.appendChild(h3b);
   const logEl=document.createElement('div'); s.appendChild(logEl);
   state.log.forEach(l=>{
     const d=document.createElement("div"); d.className="log-entry";
-    d.innerHTML = l.text + ` <span class="px g grade-badge ${l.grade}" style="display:inline-block;">${l.grade}</span>
-      <div class="log-stats">&#9917;${l.stats.goals} &#127919;${l.stats.assists} &#128992;${l.stats.yellows} &#128308;${l.stats.reds} &#129508;${l.stats.cleanSheets} (${l.stats.apps} apps)</div>`;
+    d.innerHTML = l.text + ` <span class="px g grade-badge ${l.grade}" style="display:inline-block;">${l.grade}</span>`;
     logEl.appendChild(d);
   });
 
@@ -740,94 +843,110 @@ function renderResults(s){
   }
 }
 
-function buildShareCanvas(field, rank, won){
-  const W=720, H=960;
-  const canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
-  const ctx=canvas.getContext('2d');
+function renderShare(s){
+  s.innerHTML = `<div class="eyebrow px">SHARE YOUR CAREER</div>`;
+  const h2=document.createElement('h2'); h2.className='px'; h2.textContent='YOUR CARD'; s.appendChild(h2);
+  const wrap=document.createElement('div'); wrap.className='share-canvas-wrap';
+  const canvas=document.createElement('canvas'); canvas.id='shareCanvas'; canvas.width=480; canvas.height=640;
+  wrap.appendChild(canvas); s.appendChild(wrap);
 
-  const grad=ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,'#161331'); grad.addColorStop(1,'#0d0b1e');
-  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle='#ffd23f'; ctx.lineWidth=10; ctx.strokeRect(16,16,W-32,H-32);
-  ctx.strokeStyle='#f4f1de'; ctx.lineWidth=2; ctx.strokeRect(28,28,W-56,H-56);
+  const dlBtn=document.createElement('button'); dlBtn.className='btn'; dlBtn.style.marginTop='10px'; dlBtn.textContent='⬇ DOWNLOAD IMAGE';
+  const shareNativeBtn=document.createElement('button'); shareNativeBtn.className='btn alt'; shareNativeBtn.style.marginTop='8px'; shareNativeBtn.textContent='📤 SHARE';
+  const backBtn=document.createElement('button'); backBtn.className='btn alt'; backBtn.style.marginTop='8px'; backBtn.textContent='BACK TO RESULTS';
+  backBtn.onclick = ()=>{ state.screen='results'; render(); };
+  s.appendChild(dlBtn); s.appendChild(shareNativeBtn); s.appendChild(backBtn);
 
-  ctx.textAlign='center';
-  const px = (n)=>`${n}px "Press Start 2P", monospace`;
-
-  ctx.fillStyle='#ffd23f'; ctx.font=px(24);
-  ctx.fillText('ROAD TO GOLD', W/2, 90);
-
-  ctx.fillStyle='#f4f1de'; ctx.font=px(15);
-  ctx.fillText(`${state.country.flag}  ${state.country.name}  ·  ${state.position.name}`, W/2, 130);
-
-  ctx.fillStyle='#ffd23f'; ctx.font=px(66);
-  ctx.fillText(String(state.finalScore), W/2, 250);
-  ctx.fillStyle='#7d78a8'; ctx.font=px(11);
-  ctx.fillText("BALLON D'OR POINTS", W/2, 275);
-
-  ctx.font=px(18);
-  ctx.fillStyle = won ? '#ffd23f' : '#f4f1de';
-  ctx.fillText(won ? "★ BALLON D'OR WINNER ★" : `FINISHED #${rank} OF ${field.length}`, W/2, 330);
-
-  ctx.fillStyle='#3ddc46'; ctx.font=px(12);
-  ctx.fillText(`${state.trophies.length} TROPHIES   ·   PEAK REP ${state.peakReputation}`, W/2, 370);
-
-  ctx.strokeStyle='#4a4763'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(70,410); ctx.lineTo(W-70,410); ctx.stroke();
-
-  ctx.fillStyle='#f4f1de'; ctx.font=px(11);
-  ctx.fillText('CAREER TOTALS', W/2, 445);
-
-  const cs=state.careerStats;
-  ctx.font='20px VT323, monospace';
-  const rows=[
-    [`⚽ GOALS  ${cs.goals}`, `\u{1F3AF} ASSISTS  ${cs.assists}`],
-    [`\u{1F7E8} YELLOWS  ${cs.yellows}`, `\u{1F534} REDS  ${cs.reds}`],
-    [`\u{1F9E4} CLEAN SH.  ${cs.cleanSheets}`, `\u{1F464} APPS  ${cs.apps}`],
-  ];
-  ctx.font='22px VT323, monospace'; ctx.fillStyle='#f4f1de';
-  rows.forEach((pair,i)=>{
-    ctx.textAlign='right'; ctx.fillText(pair[0], W/2-20, 490+i*38);
-    ctx.textAlign='left'; ctx.fillText(pair[1], W/2+20, 490+i*38);
+  drawShareCard(canvas).then(()=>{
+    dlBtn.onclick = ()=>{
+      const a=document.createElement('a'); a.download='road-to-gold-career.png'; a.href=canvas.toDataURL('image/png'); a.click();
+    };
+    shareNativeBtn.onclick = async ()=>{
+      canvas.toBlob(async (blob)=>{
+        const file = new File([blob], 'road-to-gold-career.png', {type:'image/png'});
+        if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+          try{ await navigator.share({files:[file], title:"Road to Gold", text:"My Ballon d'Or career result"}); }catch(e){}
+        } else {
+          const a=document.createElement('a'); a.download='road-to-gold-career.png'; a.href=canvas.toDataURL('image/png'); a.click();
+        }
+      }, 'image/png');
+    };
   });
-  ctx.textAlign='center';
-
-  ctx.strokeStyle='#4a4763'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(70,630); ctx.lineTo(W-70,630); ctx.stroke();
-
-  ctx.fillStyle='#f4f1de'; ctx.font=px(11);
-  ctx.fillText('FINAL STANDINGS', W/2, 665);
-  ctx.font='20px VT323, monospace';
-  field.slice(0,6).forEach((f,i)=>{
-    ctx.fillStyle = f.you ? '#ffd23f' : '#7d78a8';
-    ctx.textAlign='left'; ctx.fillText(`${i+1}. ${f.name}`, 90, 700+i*32);
-    ctx.textAlign='right'; ctx.fillText(String(f.score), W-90, 700+i*32);
-  });
-  ctx.textAlign='center';
-
-  ctx.fillStyle='#7d78a8'; ctx.font=px(9);
-  ctx.fillText('DRAFT YOUR OWN CAREER — ROAD TO GOLD', W/2, H-45);
-
-  return canvas;
 }
 
-async function shareCareerCard(field, rank, won){
-  try{ await document.fonts.load('24px "Press Start 2P"'); await document.fonts.ready; }catch(e){}
-  const canvas = buildShareCanvas(field, rank, won);
-  canvas.toBlob(async (blob)=>{
-    if(!blob) return;
-    const filename='road-to-gold-career.png';
-    let file=null;
-    try{ file = new File([blob], filename, {type:'image/png'}); }catch(e){}
-    if(file && navigator.canShare && navigator.canShare({files:[file]})){
-      try{ await navigator.share({files:[file], title:'Road to Gold', text:`I scored ${state.finalScore} Ballon d'Or points in Road to Gold!`}); return; }
-      catch(e){ /* user cancelled or share failed, fall through to download */ }
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download=filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url), 4000);
-  }, 'image/png');
+async function drawShareCard(canvas){
+  const ctx = canvas.getContext('2d');
+  try{
+    await Promise.all([
+      document.fonts.load("14px 'Press Start 2P'"),
+      document.fonts.load("22px 'Press Start 2P'"),
+      document.fonts.load("30px 'Press Start 2P'"),
+    ]);
+  }catch(e){}
+
+  const W=canvas.width, H=canvas.height;
+  ctx.fillStyle = "#0d0b1e"; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = "#ffd23f"; ctx.lineWidth=8; ctx.strokeRect(4,4,W-8,H-8);
+  ctx.strokeStyle = "#000"; ctx.lineWidth=4; ctx.strokeRect(14,14,W-28,H-28);
+
+  ctx.textAlign="center";
+  ctx.fillStyle="#3ddc46"; ctx.font="14px 'Press Start 2P'";
+  ctx.fillText("ROAD TO GOLD", W/2, 56);
+
+  const won = state.resultsWon; const tied = state.resultsTied;
+  ctx.font="22px 'Press Start 2P'";
+  ctx.fillStyle = won? "#ffd23f":"#f4f1de";
+  wrapCanvasText(ctx, won? "GREATEST OF YOUR GEN." : tied? "A LEGENDARY RIVALRY" : `IN ${state.rival.name.split(' ')[0].toUpperCase()}'S SHADOW`, W/2, 96, W-80, 26);
+
+  ctx.font="14px 'Press Start 2P'"; ctx.fillStyle="#7d78a8";
+  ctx.fillText(`${state.country.name.toUpperCase()} · ${state.position.name.toUpperCase()}`, W/2, 140);
+
+  const centerX = W/2;
+  if(won){
+    drawSpriteCanvas(ctx, SOCRATES_GRID, SOCRATES_PALETTE, 7, centerX-140, 165);
+    drawSpriteCanvas(ctx, TROPHY_GRID, TROPHY_PALETTE, 7, centerX-28, 175);
+    drawSpriteCanvas(ctx, PLAYER_GRID, playerPalette("#ff4d5e"), 7, centerX+56, 165);
+  } else {
+    drawSpriteCanvas(ctx, PLAYER_GRID, playerPalette(TIER_JERSEY[state.currentClub?state.currentClub.tier:"Mid"]), 9, centerX-42, 165);
+  }
+
+  const boxY = 320;
+  ctx.fillStyle="#000"; ctx.fillRect(40, boxY, W-80, 90);
+  ctx.strokeStyle="#ffd23f"; ctx.lineWidth=4; ctx.strokeRect(40, boxY, W-80, 90);
+  ctx.font="30px 'Press Start 2P'";
+  ctx.fillStyle="#ffd23f"; ctx.fillText(String(state.playerBallonDors), W/2-70, boxY+55);
+  ctx.fillStyle="#7d78a8"; ctx.font="16px 'Press Start 2P'"; ctx.fillText("VS", W/2, boxY+50);
+  ctx.fillStyle="#ff4d5e"; ctx.font="30px 'Press Start 2P'"; ctx.fillText(String(state.rivalBallonDors), W/2+70, boxY+55);
+  ctx.fillStyle="#7d78a8"; ctx.font="9px 'Press Start 2P'";
+  ctx.fillText("BALLON D'ORS WON, HEAD TO HEAD", W/2, boxY+78);
+
+  const cs = state.careerStats;
+  const stats = [["TROPHIES",state.trophies.length],["GOALS",cs.goals],["ASSISTS",cs.assists],["APPS",cs.apps],["CLEAN SHEETS",cs.cleanSheets],["PTS",state.finalScore]];
+  const gridTop = 435; const colW=(W-80)/3; const rowH=95;
+  stats.forEach((st,i)=>{
+    const col=i%3, row=Math.floor(i/3);
+    const cx = 40+col*colW+colW/2, cy = gridTop+row*rowH;
+    ctx.strokeStyle="#7d78a8"; ctx.lineWidth=2; ctx.strokeRect(40+col*colW+6, gridTop+row*rowH-28, colW-12, rowH-14);
+    ctx.fillStyle="#ffd23f"; ctx.font="18px 'Press Start 2P'";
+    ctx.fillText(String(st[1]), cx, cy);
+    ctx.fillStyle="#7d78a8"; ctx.font="8px 'Press Start 2P'";
+    ctx.fillText(st[0], cx, cy+22);
+  });
+
+  ctx.fillStyle="#7d78a8"; ctx.font="10px 'Press Start 2P'";
+  ctx.fillText("PLAY YOUR OWN CAREER →", W/2, H-30);
+}
+
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight){
+  const words = text.split(' ');
+  let line = '', lines=[];
+  words.forEach(w=>{
+    const test = line + w + ' ';
+    if(ctx.measureText(test).width > maxWidth && line !== ''){ lines.push(line); line = w + ' '; }
+    else line = test;
+  });
+  lines.push(line);
+  const startY = y - ((lines.length-1)*lineHeight)/2;
+  lines.forEach((l,i)=> ctx.fillText(l.trim(), x, startY + i*lineHeight));
 }
 
 render();
