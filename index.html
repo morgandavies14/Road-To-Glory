@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROAD TO GOLD // 8-BIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d0b1e; --bg2:#161331; --panel:#1f1c40; --ink:#000; --paper:#f4f1de;
+    --green:#3ddc46; --gold:#ffd23f; --red:#ff4d5e; --blue:#3fa7ff; --purple:#a25dff; --orange:#ff9d3f; --dim:#7d78a8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; image-rendering:pixelated;}
+  html,body{background:var(--bg); color:var(--paper); font-family:'VT323',monospace; font-size:20px; min-height:100%;}
+  .px{font-family:'Press Start 2P',monospace;}
+  #scanlines{position:fixed; inset:0; pointer-events:none; z-index:80;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode:multiply; opacity:0.5;}
+  #vignette{position:fixed; inset:0; pointer-events:none; z-index:79;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);}
+  #app{max-width:480px; margin:0 auto; min-height:100vh; position:relative; display:flex; flex-direction:column;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 24px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 24px),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    border-left:4px solid #000; border-right:4px solid #000;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:4px solid #000; background:var(--panel);}
+  .topbar .px{font-size:11px; color:var(--gold); letter-spacing:1px;}
+  .rep-tag{font-family:'Press Start 2P',monospace; font-size:9px; color:var(--paper); display:flex; align-items:center; gap:6px;}
+  .rep-tag .bar{width:50px; height:8px; background:#000; border:2px solid #000;}
+  .rep-tag .bar .f{height:100%; background:var(--green);}
+  .screen{padding:18px 16px 90px; flex:1; display:flex; flex-direction:column; gap:14px;}
+  h1.px, h2.px, h3.px{color:var(--paper); line-height:1.5; text-shadow:2px 2px 0 #000;}
+  h1.px{font-size:20px;} h2.px{font-size:14px; color:var(--gold);} h3.px{font-size:11px; color:var(--green); margin-top:4px;}
+  .lead{font-size:18px; color:var(--dim); line-height:1.4; max-width:40ch;}
+  .eyebrow.px{font-size:9px; color:var(--green); letter-spacing:2px;}
+  .pixel-panel{background:var(--panel); border:4px solid #000; box-shadow:0 0 0 2px var(--paper) inset, 6px 6px 0 rgba(0,0,0,0.5); padding:14px; position:relative;}
+  .btn{font-family:'Press Start 2P',monospace; font-size:12px; color:#000; background:var(--gold); border:4px solid #000; padding:14px 10px; text-align:center; cursor:pointer; width:100%; box-shadow:5px 5px 0 #000;}
+  .btn:active:not(:disabled){transform:translate(5px,5px); box-shadow:0 0 0 #000;}
+  .btn:disabled{background:#4a4763; color:#8b87a8; cursor:not-allowed; box-shadow:5px 5px 0 #1a1830;}
+  .btn.alt{background:var(--panel); color:var(--paper);}
+  .btn.small{font-size:9px; padding:10px 8px; box-shadow:4px 4px 0 #000;}
+  .btn.small:active:not(:disabled){transform:translate(4px,4px); box-shadow:0 0 0 #000;}
+  .btn.small:disabled{color:#5a5678; box-shadow:4px 4px 0 #1a1830;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .pick{background:var(--panel); border:3px solid #000; box-shadow:4px 4px 0 rgba(0,0,0,0.5); padding:10px; cursor:pointer; text-align:left; color:var(--paper);}
+  .pick.selected{background:#2c2760; border-color:var(--gold); box-shadow:4px 4px 0 var(--gold);}
+  .pick .flag{font-size:22px;}
+  .pick .px.name{font-size:10px; margin-top:6px;}
+  .pick .tag{font-size:9px; color:var(--green); margin-top:4px; font-family:'Press Start 2P',monospace;}
+  .pick .posnote{font-size:16px; color:var(--dim); margin-top:4px; line-height:1.3;}
+  .progress-wrap{padding:10px 16px 0;}
+  .progress-track{height:12px; background:#000; border:2px solid #000;}
+  .progress-fill{height:100%; background:var(--gold);}
+  .progress-label{display:flex; justify-content:space-between; font-size:9px; font-family:'Press Start 2P',monospace; color:var(--dim); margin-top:6px;}
+  .offer{background:var(--panel); border:4px solid #000; box-shadow:6px 6px 0 rgba(0,0,0,0.5); padding:12px; margin-bottom:14px; cursor:pointer;}
+  .offer.stay{border-color:var(--blue);}
+  .offer:active{transform:translate(3px,3px); box-shadow:3px 3px 0 rgba(0,0,0,0.5);}
+  .offer .top-row{display:flex; gap:10px;}
+  .offer .sprite-wrap{flex-shrink:0; padding-top:2px;}
+  .offer .body{flex:1; min-width:0;}
+  .offer .club-row{display:flex; justify-content:space-between; align-items:center; gap:6px;}
+  .offer .club{font-family:'Press Start 2P',monospace; font-size:11px; color:var(--paper);}
+  .tag-row{display:flex; gap:5px; flex-wrap:wrap; margin-top:6px;}
+  .tier-tag, .role-tag, .style-tag{font-family:'Press Start 2P',monospace; font-size:7px; padding:3px 5px; border:2px solid #000;}
+  .tier-tag.Elite{background:var(--gold); color:#000;}
+  .tier-tag.Big{background:var(--blue); color:#000;}
+  .tier-tag.Mid{background:var(--green); color:#000;}
+  .tier-tag.Rising{background:var(--dim); color:#000;}
+  .role-tag.STARTER{background:var(--green); color:#000;}
+  .role-tag.ROTATION{background:var(--red); color:#000;}
+  .role-tag.REBUILD{background:var(--orange); color:#000;}
+  .role-tag.BREAKOUT{background:var(--purple); color:#000;}
+  .style-tag{background:#000; color:var(--dim); border-color:var(--dim);}
+  .offer .manager{font-size:13px; color:var(--dim); margin-top:6px;}
+  .offer .flavor{font-size:15px; color:var(--dim); margin-top:4px; line-height:1.3;}
+  .meter-row{display:flex; gap:10px; margin-top:8px; align-items:flex-end;}
+  .meter{flex:1;}
+  .meter .lbl{font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); margin-bottom:3px; display:flex; justify-content:space-between;}
+  .pips{display:flex; gap:1px;}
+  .pip{width:7px; height:9px; background:#000; border:1px solid #000;}
+  .pip.hidden{background:#000; border-color:#3a3660;}
+  .pip.on.FIN{background:var(--red);} .pip.on.CRE{background:var(--purple);} .pip.on.DEF{background:var(--blue);} .pip.on.HYPE{background:var(--gold);}
+  .band-pill{font-family:'Press Start 2P',monospace; font-size:8px; padding:2px 5px; background:#000; color:var(--dim); border:1px solid var(--dim);}
+  .scout-row{margin-top:10px;}
+  .dice-overlay{position:fixed; inset:0; background:rgba(6,5,16,0.94); z-index:90; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; padding:20px; text-align:center;}
+  .roll-title{font-family:'Press Start 2P',monospace; font-size:11px; color:var(--gold);}
+  .event-text{font-size:16px; color:var(--orange); max-width:34ch; line-height:1.35;}
+  .dice-row{display:flex; gap:24px;}
+  .die-wrap{text-align:center;}
+  .die{width:64px; height:64px; background:var(--panel); border:4px solid #000; box-shadow:0 0 0 2px var(--paper) inset; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:2px; padding:6px;}
+  .die.rolling{animation:shake .08s infinite;}
+  @keyframes shake{0%{transform:rotate(0);}50%{transform:rotate(6deg);}100%{transform:rotate(-6deg);}}
+  .die-pip{width:100%; height:100%;}
+  .die-pip.on{background:var(--gold);}
+  .die-label{font-family:'Press Start 2P',monospace; font-size:8px; color:var(--dim); margin-top:8px;}
+  .grade-badge{font-family:'Press Start 2P',monospace; font-size:40px; text-align:center; padding:14px; border:4px solid #000;}
+  .grade-badge.S{background:var(--gold); color:#000;} .grade-badge.A{background:var(--green); color:#000;}
+  .grade-badge.B{background:var(--blue); color:#000;} .grade-badge.C{background:var(--orange); color:#000;} .grade-badge.D{background:var(--red); color:#000;}
+  .rep-delta{text-align:center; font-family:'Press Start 2P',monospace; font-size:12px; margin-top:8px;}
+  .rep-delta.up{color:var(--green);} .rep-delta.down{color:var(--red);}
+  .scout-note{font-size:16px; color:var(--dim); text-align:center; margin-top:10px; line-height:1.4; font-style:italic;}
+  .log-entry{background:var(--panel); border:3px solid #000; border-left:6px solid var(--gold); padding:10px 12px; font-size:16px; color:var(--paper); margin-bottom:8px; line-height:1.35;}
+  .log-entry b{color:var(--gold);}
+  .log-entry .g{font-family:'Press Start 2P',monospace; font-size:9px; padding:2px 5px; margin-left:6px;}
+  .scoreboard{background:#000; border:4px solid var(--gold); box-shadow:0 0 0 2px #000, 6px 6px 0 rgba(0,0,0,0.6); padding:18px; text-align:center;}
+  .score-num{font-family:'Press Start 2P',monospace; font-size:34px; color:var(--gold); text-shadow:3px 3px 0 #7a5c00;}
+  .score-lbl{font-family:'Press Start 2P',monospace; font-size:9px; color:var(--dim); margin-top:6px;}
+  .rank-row{display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--panel); border:3px solid #000; margin-bottom:6px;}
+  .rank-row.you{border-color:var(--gold); background:#2c2760;}
+  .rank-num.px{font-size:12px; color:var(--dim); width:26px;}
+  .rank-row.you .rank-num.px{color:var(--gold);}
+  .rank-name{font-size:16px; flex:1;} .rank-pts.px{font-size:9px; color:var(--dim);} .rank-row.you .rank-pts.px{color:var(--gold);}
+  .verdict.px{text-align:center; font-size:16px; line-height:1.6; margin-top:4px;}
+  .verdict.win.px{color:var(--gold); text-shadow:2px 2px 0 #7a5c00;}
+  .hero-row{display:flex; gap:14px; align-items:flex-end; justify-content:center; padding:6px 0;}
+  .hero-caption{font-size:14px; color:var(--dim); text-align:center; line-height:1.3;}
+  .hero-caption b{color:var(--green);}
+  .confetti{position:fixed; top:-10px; width:8px; height:10px; z-index:95; animation:fall linear forwards;}
+  @keyframes fall{to{transform:translateY(110vh) rotate(360deg); opacity:0.3;}}
+  .footer-note{font-size:14px; color:var(--dim); text-align:center;}
+  .badge-row{display:flex; gap:6px; flex-wrap:wrap;}
+  .badge.px{font-size:8px; color:#000; background:var(--green); padding:5px 7px; border:2px solid #000;}
+</style>
+</head>
+<body>
+<div id="scanlines"></div><div id="vignette"></div>
+<div id="app"></div>
+<script>
+/* ---------- SPRITES ---------- */
+function spriteEl(grid, palette, px){
+  const w = grid[0].length, h = grid.length;
+  let shadows = [];
+  for(let y=0;y<h;y++) for(let x=0;x<grid[y].length;x++){
+    const ch = grid[y][x];
+    if(ch!=='.' && palette[ch]) shadows.push(`${x*px}px ${y*px}px 0 ${palette[ch]}`);
+  }
+  const wrap = document.createElement('div');
+  wrap.style.width=(w*px)+'px'; wrap.style.height=(h*px)+'px'; wrap.style.position='relative'; wrap.style.flexShrink='0';
+  const dot = document.createElement('div');
+  dot.style.position='absolute'; dot.style.width=px+'px'; dot.style.height=px+'px'; dot.style.left='0'; dot.style.top='0';
+  dot.style.boxShadow = shadows.join(',');
+  wrap.appendChild(dot);
+  return wrap;
+}
+const PLAYER_GRID = [
+".hhhhh......",".hhhhhh.....","hKKKKKh.....","hKKKKKh.....",".KKKKK......","..KKKK......",
+"..JJJJJJ....",".JJJJJJJJ...",".JJJJJJJJ...",".JJJJJJJJ...","..JJJJJJ....","..wwwwww....",
+"..wwwwww....","..ss..ss....","..ss..ss....",".bb....bb...",
+];
+function playerPalette(jerseyColor){return {h:"#1a1a1a", K:"#c98a5b", J:jerseyColor, w:"#f4f1de", s:"#c98a5b", b:"#000000"};}
+const SOCRATES_GRID = [
+"....hh......","...hHHHHh...","..hHHHHHHh..","..kkkkkkkk..","..kkmmmmkk..","...kkkkkk...",
+"....kkkk....","...JJJJJJ...","..JJJJJJJJ..","..JJJJJJJJ..","..JJJJJJJJ..","...JJJJJJ...",
+"...uuuuuu...","...uuuuuu...","...ss..ss...","...ss..ss...","..bb....bb..",
+];
+const SOCRATES_PALETTE = {h:"#241a12", H:"#3ddc46", k:"#8b5a2b", m:"#000000", J:"#ffd23f", u:"#3fa7ff", s:"#8b5a2b", b:"#000000"};
+const TROPHY_GRID = ["..yyyy..",".yyyyyy.","yyyyyyyy","yyyyyyyy",".yyyyyy.","..yyyy..","...yy...","..yyyy..",".yyyyyy.","yyyyyyyy"];
+const TROPHY_PALETTE = {y:"#ffd23f"};
+const TIER_JERSEY = {Elite:"#ffd23f", Big:"#3fa7ff", Mid:"#3ddc46", Rising:"#a25dff"};
+
+/* ---------- DATA ---------- */
+const COUNTRIES = [
+  {name:"Brazil", flag:"🇧🇷", stat:"CRE", note:"Flair"},{name:"Argentina", flag:"🇦🇷", stat:"CRE", note:"Craft"},
+  {name:"France", flag:"🇫🇷", stat:"FIN", note:"Pace"},{name:"England", flag:"🏴", stat:"HYPE", note:"Media"},
+  {name:"Germany", flag:"🇩🇪", stat:"DEF", note:"Order"},{name:"Portugal", flag:"🇵🇹", stat:"FIN", note:"Drive"},
+  {name:"Spain", flag:"🇪🇸", stat:"CRE", note:"Technique"},{name:"Netherlands", flag:"🇳🇱", stat:"DEF", note:"Shape"},
+  {name:"Belgium", flag:"🇧🇪", stat:"CRE", note:"Gen."},{name:"Italy", flag:"🇮🇹", stat:"DEF", note:"Catenaccio"},
+  {name:"Nigeria", flag:"🇳🇬", stat:"FIN", note:"Explosive"},{name:"Croatia", flag:"🇭🇷", stat:"CRE", note:"Grit"},
+  {name:"Norway", flag:"🇳🇴", stat:"FIN", note:"Ruthless"},{name:"Morocco", flag:"🇲🇦", stat:"DEF", note:"Rising"},
+];
+const POSITIONS = [
+  {code:"GK", name:"Goalkeeper", w:{FIN:0.1,CRE:0.1,DEF:1.4,HYPE:0.6}, note:"Hardest bar in the sport."},
+  {code:"CB", name:"Centre-Back", w:{FIN:0.2,CRE:0.3,DEF:1.3,HYPE:0.7}, note:"Win it in the trenches."},
+  {code:"FB", name:"Full-Back", w:{FIN:0.5,CRE:0.8,DEF:1.0,HYPE:0.7}, note:"Box to box, overlap for glory."},
+  {code:"DM", name:"Def. Mid", w:{FIN:0.3,CRE:0.9,DEF:1.1,HYPE:0.7}, note:"The engine room."},
+  {code:"CM", name:"Central Mid", w:{FIN:0.6,CRE:1.2,DEF:0.7,HYPE:0.9}, note:"Dictate the tempo."},
+  {code:"AM", name:"Att. Mid", w:{FIN:0.9,CRE:1.3,DEF:0.3,HYPE:1.0}, note:"Chief creator."},
+  {code:"W", name:"Winger", w:{FIN:1.2,CRE:1.1,DEF:0.2,HYPE:1.1}, note:"Highlight reels."},
+  {code:"ST", name:"Striker", w:{FIN:1.4,CRE:0.5,DEF:0.1,HYPE:1.2}, note:"Goals win Ballon d'Ors."},
+];
+/* club tuples: [name, manager, style]  style: possession | direct | balanced */
+const CLUB_POOL = {
+  Elite:[["Real Madrid","Ancelotti","possession"],["Man City","Guardiola","possession"],["Bayern Munich","Kompany","direct"],
+         ["PSG","Enrique","balanced"],["Barcelona","Flick","possession"],["Liverpool","Slot","direct"]],
+  Big:[["Arsenal","Arteta","possession"],["Inter Milan","Chivu","balanced"],["Dortmund","Kovac","direct"],
+       ["Atletico Madrid","Simeone","direct"],["Juventus","Tudor","balanced"],["Chelsea","Maresca","possession"]],
+  Mid:[["Villarreal","Marcelino","possession"],["Napoli","Conte","balanced"],["Bologna","Italiano","direct"],
+       ["Betis","Pellegrini","possession"],["Monaco","Hutter","direct"],["Brighton","Hurzeler","possession"]],
+  Rising:[["Girona","Michel","possession"],["Bournemouth","Iraola","direct"],["Freiburg","Schuster","balanced"],
+          ["Getafe","Bordalas","direct"],["Toulouse","Casanova","balanced"],["Union SG","Blessin","direct"]],
+};
+const STYLE_ICON = {possession:"POSSESSION", direct:"DIRECT", balanced:"BALANCED"};
+const FLAVORS = {
+  Elite:["Champions League every year. Rotation isn't guaranteed.","Marquee signing. Marquee pressure.","Sign here, and every miss is a headline."],
+  Big:["Guaranteed starts, continental knockouts up for grabs.","A club on the rise, hungry to break the elite's grip.","Big wages, bigger expectations."],
+  Mid:["Undisputed starter, but trophies are thin on the ground.","A project club — build something or get poached.","Comfortable, competitive, forgettable if you don't produce."],
+  Rising:["First-team football guaranteed. The stage is small.","Everyone plays here to leave. Make it count.","Overlooked league, chance to shine every week."],
+};
+const RIVAL_FIRST = ["Kai","Jude","Lamine","Erling","Vinicius","Bukayo","Florian","Pedri","Jamal","Rodrigo","Victor","Khvicha","Endrick","Alejandro"];
+const RIVAL_LAST = ["Werner","Bello","García","Solberg","Adeyemi","Nakamura","Wirtz","Costa","Musiala","Diallo","Osei","Kvara","Ferreira","Duran"];
+
+const ROLE_META = {
+  STARTER:  {label:"STARTER",         variance:[0.70,1.40], baseline:7, minutesMult:1.00},
+  ROTATION: {label:"ROTATION RISK",   variance:[0.30,1.60], baseline:5, minutesMult:0.60},
+  REBUILD:  {label:"REBUILD CONTRACT",variance:[0.70,1.30], baseline:6, minutesMult:1.00, repBonus:6},
+  BREAKOUT: {label:"BREAKOUT MOVE",   variance:[0.60,1.50], baseline:7, minutesMult:1.00, repBonus:3},
+};
+
+const STAY_EVENTS = [
+  {key:"sacked", weight:20, text:"Pre-season update: the manager was sacked in August. The new coach doesn't rate you.", effect:{roleOverride:"ROTATION"}},
+  {key:"injury", weight:15, text:"Pre-season update: a hidden injury layoff cost you six weeks of the season.", effect:{minutesCut:0.55}},
+  {key:"captain", weight:15, text:"Pre-season update: new deal signed — you've been handed the captaincy.", effect:{repBonus:5, hypeBonus:10}},
+  {key:"quiet", weight:50, text:"Pre-season update: a quiet summer at the club. Nothing changed.", effect:{}},
+];
+
+const TOTAL_ROUNDS = 15;
+const START_AGE = 18;
+
+let state = resetState();
+function resetState(){
+  return {
+    screen:"intro", country:null, position:null, round:0,
+    stats:{FIN:0,CRE:0,DEF:0,HYPE:0}, trophies:[], log:[],
+    reputation:50, peakReputation:50, scoutReports:3,
+    currentClub:null, lastGrade:null, currentOffers:[], finalScore:0,
+    pendingSummary:null,
+  };
+}
+
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function weightedPick(items){ // items: [{...,weight}]
+  const total = items.reduce((a,i)=>a+i.weight,0);
+  let r = Math.random()*total;
+  for(const it of items){ if(r<it.weight) return it; r-=it.weight; }
+  return items[items.length-1];
+}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+function phaseForRound(r){ return r<3?"breakthrough": r<7?"rise": r<11?"prime":"twilight"; }
+function tierWeights(phase){
+  if(phase==="breakthrough") return [["Rising",70],["Mid",25],["Big",5]];
+  if(phase==="rise") return [["Mid",40],["Big",35],["Rising",20],["Elite",5]];
+  if(phase==="prime") return [["Elite",45],["Big",35],["Mid",20]];
+  return [["Elite",35],["Big",40],["Mid",25]]; // twilight
+}
+function pickTier(phase){
+  const w = tierWeights(phase);
+  return weightedPick(w.map(([t,wt])=>({tier:t,weight:wt}))).tier;
+}
+
+function roleForOffer(tier, reputation){
+  let starterChance;
+  if(tier==="Elite") starterChance = reputation>=80?70:reputation>=60?35:10;
+  else if(tier==="Big") starterChance = reputation>=60?75:reputation>=40?45:20;
+  else if(tier==="Mid") starterChance = reputation>=30?85:60;
+  else starterChance = 90;
+  return Math.random()*100 < starterChance ? "STARTER" : "ROTATION";
+}
+
+function bandLabel(v){ return v<40?"LOW":v<70?"MED":"HIGH"; }
+
+function genOffers(){
+  const phase = phaseForRound(state.round);
+  const offers = [];
+  const usedClubs = new Set(state.log.map(l=>l.club));
+  if(state.currentClub) usedClubs.add(state.currentClub.name);
+
+  const breakoutFlag = state.lastGrade && ["S","A"].includes(state.lastGrade) && state.currentClub && ["Mid","Rising"].includes(state.currentClub.tier);
+  const rebuildFlag = state.lastGrade === "D";
+
+  let slots = 3;
+  let forced = [];
+  if(breakoutFlag){
+    const tier = Math.random()<0.5?"Elite":"Big";
+    const [name,manager,style] = pick(CLUB_POOL[tier]);
+    forced.push({club:name, manager, tier, style, role:"BREAKOUT", roleMeta:ROLE_META.BREAKOUT,
+      teamQuality: tier==="Elite"?rnd(85,98):rnd(70,86), trophyChance: tier==="Elite"?rnd(55,80):rnd(30,50),
+      hype: tier==="Elite"?rnd(80,100):rnd(55,75), flavor:"They watched your breakout season. They're buying you to start, not to sit.",
+      revealed:false});
+  } else if(rebuildFlag){
+    const tier = Math.random()<0.5?"Mid":"Rising";
+    const [name,manager,style] = pick(CLUB_POOL[tier]);
+    forced.push({club:name, manager, tier, style, role:"REBUILD", roleMeta:ROLE_META.REBUILD,
+      teamQuality: tier==="Mid"?rnd(55,72):rnd(38,58), trophyChance: tier==="Mid"?rnd(10,25):rnd(2,12),
+      hype: tier==="Mid"?rnd(30,50):rnd(15,35), flavor:"A guaranteed starting shirt while you rebuild your name.",
+      revealed:false});
+  }
+  slots -= forced.length;
+
+  for(let i=0;i<slots;i++){
+    const tier = pickTier(phase);
+    const clubs = CLUB_POOL[tier];
+    let choice = pick(clubs), tries=0;
+    while(usedClubs.has(choice[0]) && tries<6){ choice = pick(clubs); tries++; }
+    const [name,manager,style] = choice;
+    const role = roleForOffer(tier, state.reputation);
+    const teamQuality = tier==="Elite"?rnd(85,98):tier==="Big"?rnd(70,86):tier==="Mid"?rnd(55,72):rnd(38,58);
+    const trophyChance = tier==="Elite"?rnd(55,80):tier==="Big"?rnd(30,50):tier==="Mid"?rnd(10,25):rnd(2,12);
+    const hype = tier==="Elite"?rnd(80,100):tier==="Big"?rnd(55,75):tier==="Mid"?rnd(30,50):rnd(15,35);
+    forced.push({club:name, manager, tier, style, role, roleMeta:ROLE_META[role], teamQuality, trophyChance, hype, flavor:pick(FLAVORS[tier]), revealed:false});
+  }
+
+  offers.push(...forced);
+
+  if(state.currentClub){
+    const cc = state.currentClub;
+    const role = roleForOffer(cc.tier, state.reputation);
+    offers.push({club:cc.name, manager:cc.manager, tier:cc.tier, style:cc.style, role, roleMeta:ROLE_META[role],
+      teamQuality:cc.teamQuality, trophyChance:cc.trophyChance, hype:cc.hype,
+      flavor:"You know this dressing room. No surprises... probably.", revealed:true, isStay:true});
+  }
+  return offers;
+}
+
+/* ---------- RENDER ---------- */
+function pipMeterRow(container, label, value, cls, revealed){
+  const wrap = document.createElement('div'); wrap.className='meter';
+  const lbl = document.createElement('div'); lbl.className='lbl';
+  lbl.innerHTML = `<span>${label}</span>${revealed?'':`<span class="band-pill">${bandLabel(value)}</span>`}`;
+  wrap.appendChild(lbl);
+  if(revealed){
+    const pips = document.createElement('div'); pips.className='pips';
+    const filled = Math.round(value/10);
+    for(let i=0;i<10;i++){ const p=document.createElement('div'); p.className='pip'+(i<filled?' on '+cls:''); pips.appendChild(p); }
+    wrap.appendChild(pips);
+  } else {
+    const pips = document.createElement('div'); pips.className='pips';
+    for(let i=0;i<10;i++){ const p=document.createElement('div'); p.className='pip hidden'; pips.appendChild(p); }
+    wrap.appendChild(pips);
+  }
+  container.appendChild(wrap);
+}
+
+function render(){
+  const app = document.getElementById("app"); app.innerHTML = "";
+  const top = document.createElement("div"); top.className="topbar";
+  top.innerHTML = `<span class="px" style="font-size:12px;">&#9724; ROAD TO GOLD</span>`;
+  if(state.screen==="draft" || state.screen==="summary"){
+    const rt = document.createElement('div'); rt.className='rep-tag';
+    rt.innerHTML = `<span>REP ${state.reputation}</span><span class="bar"><span class="f" style="width:${state.reputation}%"></span></span>`;
+    top.appendChild(rt);
+  }
+  app.appendChild(top);
+
+  if(state.screen==="draft"){
+    const pw = document.createElement('div'); pw.className='progress-wrap';
+    pw.innerHTML = `<div class="progress-track"><div class="progress-fill" style="width:${(state.round/TOTAL_ROUNDS)*100}%"></div></div>
+      <div class="progress-label"><span>YEAR ${state.round+1}/${TOTAL_ROUNDS}</span><span>AGE ${START_AGE+state.round}</span></div>`;
+    app.appendChild(pw);
+  }
+
+  const screen = document.createElement("div"); screen.className="screen"; app.appendChild(screen);
+  if(state.screen==="intro") renderIntro(screen);
+  else if(state.screen==="country") renderCountry(screen);
+  else if(state.screen==="position") renderPosition(screen);
+  else if(state.screen==="draft") renderDraft(screen);
+  else if(state.screen==="summary") renderSummary(screen);
+  else if(state.screen==="results") renderResults(screen);
+}
+
+function renderIntro(s){
+  s.innerHTML = `<div class="eyebrow px">A 15-YEAR CAREER DRAFT</div>`;
+  const h1=document.createElement('h1'); h1.className='px'; h1.textContent="WIN THE BALLON D'OR"; s.appendChild(h1);
+  const lead=document.createElement('p'); lead.className='lead';
+  lead.textContent="Pick your country. Pick your position. Draft 15 seasons, age 18 to 32 — every contract is a gamble, every season a dice roll, and your reputation decides what's on offer next.";
+  s.appendChild(lead);
+  const heroPanel=document.createElement('div'); heroPanel.className='pixel-panel';
+  const heroRow=document.createElement('div'); heroRow.className='hero-row';
+  heroRow.appendChild(spriteEl(SOCRATES_GRID, SOCRATES_PALETTE, 6));
+  heroPanel.appendChild(heroRow);
+  const cap=document.createElement('div'); cap.className='hero-caption';
+  cap.innerHTML=`<b>DOCTOR SÓCRATES</b><br>the original No.10 — headband, cigarette break, backheel assist. every save file starts in his shadow.`;
+  heroPanel.appendChild(cap); s.appendChild(heroPanel);
+  const badges=document.createElement('div'); badges.className='pixel-panel';
+  badges.innerHTML=`<div class="badge-row">
+    <span class="badge px">15 SEASONS</span><span class="badge px">REPUTATION</span>
+    <span class="badge px">STAY OR MOVE</span><span class="badge px">3 SCOUT REPORTS</span></div>`;
+  s.appendChild(badges);
+  const btn=document.createElement('button'); btn.className='btn'; btn.textContent='BEGIN CAREER';
+  btn.onclick=()=>{state.screen="country"; render();};
+  s.appendChild(btn);
+}
+
+function renderCountry(s){
+  s.innerHTML = `<div class="eyebrow px">STEP 1 / 2</div>`;
+  const h2=document.createElement('h2'); h2.className='px'; h2.textContent='CHOOSE YOUR NATION'; s.appendChild(h2);
+  const grid=document.createElement('div'); grid.className='grid2'; s.appendChild(grid);
+  COUNTRIES.forEach(c=>{
+    const el=document.createElement("div"); el.className="pick";
+    el.innerHTML=`<div class="flag">${c.flag}</div><div class="px name">${c.name}</div><div class="tag">+${c.note.toUpperCase()}</div>`;
+    el.onclick=()=>{ state.country=c; [...grid.children].forEach(x=>x.classList.remove("selected")); el.classList.add("selected"); nextBtn.disabled=false; };
+    grid.appendChild(el);
+  });
+  const nextBtn=document.createElement('button'); nextBtn.className='btn'; nextBtn.textContent='CONFIRM NATION'; nextBtn.disabled=true;
+  nextBtn.onclick=()=>{state.screen="position"; render();};
+  s.appendChild(nextBtn);
+}
+
+function renderPosition(s){
+  s.innerHTML = `<div class="eyebrow px">STEP 2 / 2</div>`;
+  const h2=document.createElement('h2'); h2.className='px'; h2.textContent='CHOOSE YOUR POSITION'; s.appendChild(h2);
+  const wrap=document.createElement('div'); s.appendChild(wrap);
+  POSITIONS.forEach(p=>{
+    const el=document.createElement("div"); el.className="pick"; el.style.marginBottom="8px";
+    el.innerHTML=`<div class="px name">${p.name} — ${p.code}</div><div class="posnote">${p.note}</div>`;
+    el.onclick=()=>{ state.position=p; [...wrap.children].forEach(x=>x.classList.remove("selected")); el.classList.add("selected"); nextBtn.disabled=false; };
+    wrap.appendChild(el);
+  });
+  const nextBtn=document.createElement('button'); nextBtn.className='btn'; nextBtn.textContent='START CAREER'; nextBtn.disabled=true;
+  nextBtn.onclick=()=>{ state.screen="draft"; state.currentOffers = genOffers(); render(); };
+  s.appendChild(nextBtn);
+}
+
+function renderDraft(s){
+  const phase = phaseForRound(state.round);
+  const phaseLabel = {breakthrough:"BREAKTHROUGH", rise:"RISE", prime:"PRIME", twilight:"TWILIGHT"}[phase];
+  const label=document.createElement('div');
+  label.innerHTML = `<div class="eyebrow px">${state.country.flag} ${state.position.code} · ${phaseLabel}</div>`;
+  s.appendChild(label);
+  const h2=document.createElement('h2'); h2.className='px';
+  h2.textContent = state.currentClub ? `OFFERS — YEAR ${state.round+1}` : "YOUR FIRST CONTRACT";
+  s.appendChild(h2);
+
+  const offersWrap=document.createElement('div'); s.appendChild(offersWrap);
+  state.currentOffers.forEach((o,idx)=>{
+    const el=document.createElement("div"); el.className="offer"+(o.isStay?" stay":"");
+    const topRow=document.createElement('div'); topRow.className='top-row';
+    const spriteWrap=document.createElement('div'); spriteWrap.className='sprite-wrap';
+    spriteWrap.appendChild(spriteEl(PLAYER_GRID, playerPalette(TIER_JERSEY[o.tier]), 3));
+    topRow.appendChild(spriteWrap);
+    const body=document.createElement('div'); body.className='body';
+    body.innerHTML = `
+      <div class="club-row"><div class="club">${o.isStay?"STAY — ":""}${o.club}</div></div>
+      <div class="tag-row">
+        <span class="tier-tag ${o.tier}">${o.tier.toUpperCase()}</span>
+        <span class="role-tag ${o.role}">${o.roleMeta.label}</span>
+        <span class="style-tag">${STYLE_ICON[o.style]}</span>
+      </div>
+      <div class="manager">Manager: ${o.manager}</div>
+      <div class="flavor">"${o.flavor}"</div>
+    `;
+    topRow.appendChild(body);
+    el.appendChild(topRow);
+
+    const meterRow=document.createElement('div'); meterRow.className='meter-row';
+    pipMeterRow(meterRow,'TEAM', o.teamQuality, 'DEF', o.revealed);
+    pipMeterRow(meterRow,'TROPHY%', o.trophyChance, 'FIN', o.revealed);
+    pipMeterRow(meterRow,'HYPE', o.hype, 'HYPE', o.revealed);
+    el.appendChild(meterRow);
+
+    if(!o.revealed){
+      const scoutRow=document.createElement('div'); scoutRow.className='scout-row';
+      const scoutBtn=document.createElement('button'); scoutBtn.className='btn small alt';
+      scoutBtn.textContent = `SCOUT REPORT (${state.scoutReports} LEFT)`;
+      scoutBtn.disabled = state.scoutReports<=0;
+      scoutBtn.onclick=(e)=>{ e.stopPropagation(); if(state.scoutReports<=0) return; state.scoutReports--; o.revealed=true; render(); };
+      scoutRow.appendChild(scoutBtn); el.appendChild(scoutRow);
+    }
+
+    el.onclick = ()=> resolveOffer(o);
+    offersWrap.appendChild(el);
+  });
+}
+
+function buildDie(container, value){
+  const die=document.createElement('div'); die.className='die rolling';
+  const layouts={1:[0,0,0,0,1,0,0,0,0],2:[1,0,0,0,0,0,0,0,1],3:[1,0,0,0,1,0,0,0,1],4:[1,0,1,0,0,0,1,0,1],5:[1,0,1,0,1,0,1,0,1],6:[1,0,1,1,0,1,1,0,1]};
+  layouts[value].forEach(on=>{ const pip=document.createElement('div'); pip.className='die-pip'+(on?' on':''); die.appendChild(pip); });
+  container.appendChild(die);
+  return die;
+}
+
+function resolveOffer(offer){
+  const overlay=document.createElement("div"); overlay.className="dice-overlay";
+  document.getElementById("app").appendChild(overlay);
+
+  function startDiceRoll(effectiveOffer, eventEffect){
+    overlay.innerHTML = "";
+    const title=document.createElement('div'); title.className='roll-title';
+    title.textContent = `ROLLING YOUR SEASON AT ${effectiveOffer.club.toUpperCase()}...`;
+    overlay.appendChild(title);
+    const row=document.createElement('div'); row.className='dice-row'; overlay.appendChild(row);
+    const w1=document.createElement('div'); w1.className='die-wrap';
+    const w2=document.createElement('div'); w2.className='die-wrap';
+    row.appendChild(w1); row.appendChild(w2);
+    let d1=buildDie(w1, rnd(1,6)); let d2=buildDie(w2, rnd(1,6));
+    const l1=document.createElement('div'); l1.className='die-label'; l1.textContent='FORM'; w1.appendChild(l1);
+    const l2=document.createElement('div'); l2.className='die-label'; l2.textContent='FITNESS'; w2.appendChild(l2);
+    let ticks=0;
+    const iv=setInterval(()=>{
+      w1.removeChild(d1); d1=buildDie(w1, rnd(1,6)); w1.insertBefore(d1,l1);
+      w2.removeChild(d2); d2=buildDie(w2, rnd(1,6)); w2.insertBefore(d2,l2);
+      ticks++;
+      if(ticks>10){
+        clearInterval(iv);
+        const form=rnd(1,6), fitness=rnd(1,6);
+        w1.removeChild(d1); d1=buildDie(w1, form); d1.classList.remove('rolling'); w1.insertBefore(d1,l1);
+        w2.removeChild(d2); d2=buildDie(w2, fitness); d2.classList.remove('rolling'); w2.insertBefore(d2,l2);
+        setTimeout(()=>{ document.getElementById("app").removeChild(overlay); applySeason(effectiveOffer, form, fitness, eventEffect); }, 700);
+      }
+    }, 80);
+  }
+
+  if(offer.isStay){
+    const ev = weightedPick(STAY_EVENTS);
+    const title=document.createElement('div'); title.className='roll-title'; title.textContent='PRE-SEASON';
+    const txt=document.createElement('div'); txt.className='event-text'; txt.textContent=ev.text;
+    overlay.appendChild(title); overlay.appendChild(txt);
+    const btn=document.createElement('button'); btn.className='btn'; btn.style.maxWidth='220px'; btn.textContent='CONTINUE';
+    btn.onclick=()=>{
+      let effOffer = {...offer};
+      if(ev.effect.roleOverride){ effOffer.role = ev.effect.roleOverride; effOffer.roleMeta = ROLE_META[ev.effect.roleOverride]; }
+      startDiceRoll(effOffer, ev.effect);
+    };
+    overlay.appendChild(btn);
+  } else {
+    startDiceRoll(offer, {});
+  }
+}
+
+function gradeFromDelta(delta){
+  if(delta>=4) return "S"; if(delta>=2) return "A"; if(delta>=-1) return "B"; if(delta>=-3) return "C"; return "D";
+}
+const GRADE_REP = {S:12, A:7, B:2, C:-4, D:-10};
+const GRADE_NOTE = {
+  S:["Career-defining form. Every scout in Europe is calling.","A season for the highlight reel — this is Ballon d'Or form."],
+  A:["Excellent campaign. Genuinely elite output.","One of the standout performers in the league this year."],
+  B:["Solid, dependable, exactly what was asked of you.","Did the job. No more, no less."],
+  C:["Below expectations — questions being asked already.","A quiet, forgettable season."],
+  D:["A poor campaign. Reputation is taking a real hit.","Struggled for form and for minutes."],
+};
+
+function applySeason(offer, form, fitness, eventEffect){
+  eventEffect = eventEffect || {};
+  const minutesCut = eventEffect.minutesCut || 1;
+  const roleMeta = offer.roleMeta;
+  const [lo,hi] = roleMeta.variance;
+  const perf = (form+fitness-2)/10; // 0..1
+  const mult = (lo + perf*(hi-lo)) * minutesCut;
+
+  const pos = state.position.w;
+  const bonusStat = state.country.stat;
+  const styleMult = {FIN:1, CRE:1, DEF:1};
+  if(offer.style==="possession") styleMult.CRE = 1.2;
+  else if(offer.style==="direct") styleMult.FIN = 1.2;
+  else styleMult.DEF = 1.1;
+
+  const gainFIN = Math.round(pos.FIN * offer.teamQuality * mult * 0.14 * styleMult.FIN) + (bonusStat==="FIN"?rnd(2,5):0);
+  const gainCRE = Math.round(pos.CRE * offer.teamQuality * mult * 0.14 * styleMult.CRE) + (bonusStat==="CRE"?rnd(2,5):0);
+  const gainDEF = Math.round(pos.DEF * offer.teamQuality * mult * 0.14 * styleMult.DEF) + (bonusStat==="DEF"?rnd(2,5):0);
+  let gainHYPE = Math.round(offer.hype * mult * 0.5) + (bonusStat==="HYPE"?rnd(2,5):0);
+  if(eventEffect.hypeBonus) gainHYPE += eventEffect.hypeBonus;
+
+  state.stats.FIN += gainFIN; state.stats.CRE += gainCRE; state.stats.DEF += gainDEF; state.stats.HYPE += gainHYPE;
+
+  let trophyWon = null;
+  if(rnd(1,100) <= offer.trophyChance){
+    trophyWon = pick(["League Title","Champions League","Domestic Cup","Continental Treble"]);
+    state.trophies.push(trophyWon);
+    state.stats.HYPE += 12;
+  }
+
+  const tierAdj = {Elite:-1, Big:-0.5, Mid:0, Rising:1}[offer.tier];
+  let delta = (form+fitness) - roleMeta.baseline - tierAdj;
+  let grade = gradeFromDelta(delta);
+  if(trophyWon){ const order=["D","C","B","A","S"]; grade = order[Math.min(order.length-1, order.indexOf(grade)+1)]; }
+
+  let repDelta = GRADE_REP[grade];
+  if(roleMeta.repBonus) repDelta += roleMeta.repBonus;
+  if(eventEffect.repBonus) repDelta += eventEffect.repBonus;
+  state.reputation = clamp(state.reputation + repDelta, 0, 100);
+  state.peakReputation = Math.max(state.peakReputation, state.reputation);
+  state.lastGrade = grade;
+
+  state.currentClub = {name:offer.club, manager:offer.manager, tier:offer.tier, style:offer.style,
+    teamQuality:offer.teamQuality, trophyChance:offer.trophyChance, hype:offer.hype};
+
+  const note = pick(GRADE_NOTE[grade]);
+  state.log.push({club:offer.club, grade,
+    text:`<b>${offer.club}</b> (Year ${state.round+1}, age ${START_AGE+state.round}) — ${roleMeta.label}. ${note}${trophyWon? ` Lifted the ${trophyWon}!`:''}`});
+
+  state.pendingSummary = {grade, repDelta, note, trophyWon, club:offer.club};
+  state.round++;
+  state.screen = "summary";
+  render();
+}
+
+function renderSummary(s){
+  const p = state.pendingSummary;
+  const h2=document.createElement('h2'); h2.className='px'; h2.textContent=`SEASON REVIEW — ${p.club.toUpperCase()}`; s.appendChild(h2);
+  const badge=document.createElement('div'); badge.className='grade-badge '+p.grade; badge.textContent=p.grade; s.appendChild(badge);
+  const rd=document.createElement('div'); rd.className='rep-delta '+(p.repDelta>=0?'up':'down');
+  rd.textContent = `REPUTATION ${p.repDelta>=0?'+':''}${p.repDelta} → ${state.reputation}`;
+  s.appendChild(rd);
+  const noteEl=document.createElement('div'); noteEl.className='scout-note';
+  noteEl.textContent = `"${p.note}"${p.trophyWon? ` Lifted the ${p.trophyWon}.`:''}`;
+  s.appendChild(noteEl);
+
+  const btn=document.createElement('button'); btn.className='btn';
+  if(state.round >= TOTAL_ROUNDS){
+    btn.textContent='SEE CAREER RESULT';
+    btn.onclick = ()=> finalizeCareer();
+  } else {
+    btn.textContent='NEXT SEASON';
+    btn.onclick = ()=>{ state.currentOffers = genOffers(); state.screen="draft"; render(); };
+  }
+  s.appendChild(btn);
+}
+
+function finalizeCareer(){
+  const pos = state.position.w; const st = state.stats;
+  let score = st.FIN*pos.FIN*0.6 + st.CRE*pos.CRE*0.6 + st.DEF*pos.DEF*0.6 + st.HYPE*0.5;
+  score += state.trophies.length * 14;
+  score += state.peakReputation * 0.5;
+  score = Math.round(score);
+  state.finalScore = score;
+  const rivals=[];
+  for(let i=0;i<5;i++){ const base=rnd(Math.max(20,score-70), score+90); rivals.push({name:pick(RIVAL_FIRST)+" "+pick(RIVAL_LAST), score:Math.max(15,base)}); }
+  state.rivals = rivals;
+  state.screen="results"; render();
+}
+
+function renderResults(s){
+  const field = [...state.rivals, {name:"YOU", score:state.finalScore, you:true}].sort((a,b)=>b.score-a.score);
+  const rank = field.findIndex(f=>f.you)+1;
+  const won = rank===1;
+  s.innerHTML = `<div class="eyebrow px">CAREER COMPLETE — 15 SEASONS</div>`;
+  const h2=document.createElement('h2'); h2.className='px'; h2.textContent=`${state.country.flag} ${state.position.name}`; s.appendChild(h2);
+  const scoreboard=document.createElement('div'); scoreboard.className='scoreboard';
+  scoreboard.innerHTML=`<div class="score-num">${state.finalScore}</div><div class="score-lbl px">BALLON D'OR POINTS · ${state.trophies.length} TROPHIES · PEAK REP ${state.peakReputation}</div>`;
+  s.appendChild(scoreboard);
+
+  if(won){
+    const heroPanel=document.createElement('div'); heroPanel.className='pixel-panel';
+    const heroRow=document.createElement('div'); heroRow.className='hero-row';
+    heroRow.appendChild(spriteEl(SOCRATES_GRID, SOCRATES_PALETTE, 5));
+    heroRow.appendChild(spriteEl(TROPHY_GRID, TROPHY_PALETTE, 5));
+    heroRow.appendChild(spriteEl(PLAYER_GRID, playerPalette(state.country.stat==="HYPE"?"#ffd23f":"#ff4d5e"), 5));
+    heroPanel.appendChild(heroRow);
+    const cap=document.createElement('div'); cap.className='hero-caption';
+    cap.innerHTML=`<b>SÓCRATES NODS FROM THE STANDS.</b><br>you've joined the club that actually deserves the No.10.`;
+    heroPanel.appendChild(cap); s.appendChild(heroPanel);
+  }
+
+  const verdict=document.createElement('div'); verdict.className='verdict px'+(won?' win':'');
+  verdict.textContent = won ? "★ YOU WON THE BALLON D'OR ★" : `YOU FINISHED #${rank} OF 6`;
+  s.appendChild(verdict);
+
+  const h3a=document.createElement('h3'); h3a.className='px'; h3a.textContent='FINAL STANDINGS'; s.appendChild(h3a);
+  const ranksEl=document.createElement('div'); s.appendChild(ranksEl);
+  field.forEach((f,i)=>{
+    const row=document.createElement("div"); row.className="rank-row"+(f.you?" you":"");
+    row.innerHTML=`<div class="rank-num px">${i+1}</div><div class="rank-name">${f.name}</div><div class="rank-pts px">${f.score}</div>`;
+    ranksEl.appendChild(row);
+  });
+
+  const h3b=document.createElement('h3'); h3b.className='px'; h3b.textContent='CAREER LOG'; s.appendChild(h3b);
+  const logEl=document.createElement('div'); s.appendChild(logEl);
+  state.log.forEach(l=>{
+    const d=document.createElement("div"); d.className="log-entry";
+    d.innerHTML = l.text + ` <span class="px g grade-badge ${l.grade}" style="display:inline-block;">${l.grade}</span>`;
+    logEl.appendChild(d);
+  });
+
+  const again=document.createElement('button'); again.className='btn'; again.textContent='DRAFT A NEW CAREER';
+  again.onclick=()=>{ state=resetState(); render(); };
+  s.appendChild(again);
+  const foot=document.createElement('div'); foot.className='footer-note'; foot.textContent='Screenshot your result. See if the group chat can beat it.';
+  s.appendChild(foot);
+
+  if(won){
+    for(let i=0;i<40;i++){
+      const c=document.createElement("div"); c.className="confetti";
+      c.style.left=Math.random()*100+"vw"; c.style.background=pick(["#ffd23f","#3ddc46","#3fa7ff","#ff4d5e"]);
+      c.style.animationDuration=(2+Math.random()*2)+"s"; c.style.animationDelay=(Math.random()*0.6)+"s";
+      document.body.appendChild(c); setTimeout(()=>c.remove(), 4500);
+    }
+  }
+}
+
+render();
+</script>
+</body>
+</html>
