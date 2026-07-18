@@ -258,7 +258,7 @@ const LEGACY_POS_WEIGHTS = {
   ST:{goals:3.0, assists:1.2, cleanSheets:0.0},
 };
 /* Legacy Score: universal categories, same weight regardless of position */
-const LEGACY_UNIVERSAL_WEIGHTS = {leagueTitles:1.4, domesticCups:0.8, championsLeagues:2.5, worldCups:4.0, continentalTitles:2.8, motms:0.5, totys:1.5, goldenBalloons:75};
+const LEGACY_UNIVERSAL_WEIGHTS = {leagueTitles:1.4, domesticCups:0.8, continentalCups:2.5, worldCups:4.0, continentalTitles:2.8, motms:0.5, totys:1.5, goldenBalloons:75};
 
 /* International tournaments: roughly every 4 years, offset like the real calendar */
 const WORLD_CUP_ROUNDS = [2,6,10,14];
@@ -291,7 +291,7 @@ const CLUB_POOL = {
 };
 const STYLE_ICON = {possession:"POSSESSION", direct:"DIRECT", balanced:"BALANCED"};
 const FLAVORS = {
-  Elite:["Champions League every year. Rotation isn't guaranteed.","Marquee signing. Marquee pressure.","Sign here, and every miss is a headline."],
+  Elite:["Continental Cup every year. Rotation isn't guaranteed.","Marquee signing. Marquee pressure.","Sign here, and every miss is a headline."],
   Big:["Guaranteed starts, continental knockouts up for grabs.","A club on the rise, hungry to break the elite's grip.","Big wages, bigger expectations."],
   Mid:["Undisputed starter, but trophies are thin on the ground.","A project club — build something or get poached.","Comfortable, competitive, forgettable if you don't produce."],
   Rising:["First-team football guaranteed. The stage is small.","Everyone plays here to leave. Make it count.","Overlooked league, chance to shine every week."],
@@ -362,7 +362,7 @@ const INCENTIVE_POOL = [
   {key:"teamBuilt", label:"TEAM BUILT AROUND YOU", desc:"The club is building its identity around your game — a lasting boost to your strongest output for the life of this deal.", tiers:["Mid","Rising","Big"]},
   {key:"releaseClause", label:"RELEASE CLAUSE", desc:"A release clause guarantees a forced big-club offer once your Rating crosses a threshold.", tiers:["Mid","Rising"]},
   {key:"noRotation", label:"NO-ROTATION CLAUSE", desc:"Guaranteed Starter role for this entire contract, whatever your Rating says.", tiers:["Big","Elite"]},
-  {key:"continental", label:"CONTINENTAL AMBITION CLAUSE", desc:"The board is building for Europe — noticeably boosted European Cup odds.", tiers:["Big","Elite"]},
+  {key:"continental", label:"CONTINENTAL AMBITION CLAUSE", desc:"The board is building for continental glory — noticeably boosted Continental Cup odds.", tiers:["Big","Elite"]},
 ];
 function maybeAssignIncentive(tier){
   if(Math.random() > 0.35) return null;
@@ -387,8 +387,8 @@ function resetState(){
     currentClub:null, lastGrade:null, currentOffers:[], finalScore:0,
     pendingSummary:null,
     careerStats:{apps:0, goals:0, assists:0, yellows:0, reds:0, cleanSheets:0,
-      leagueTitles:0, domesticCups:0, championsLeagues:0, worldCups:0, continentalTitles:0, motms:0, totys:0, goldenBalloons:0},
-    rivalCareerStats:{goals:0, assists:0, cleanSheets:0, leagueTitles:0, domesticCups:0, championsLeagues:0,
+      leagueTitles:0, domesticCups:0, continentalCups:0, worldCups:0, continentalTitles:0, motms:0, totys:0, goldenBalloons:0},
+    rivalCareerStats:{goals:0, assists:0, cleanSheets:0, leagueTitles:0, domesticCups:0, continentalCups:0,
       worldCups:0, continentalTitles:0, motms:0, totys:0, goldenBalloons:0},
     rival:null, rivalRating:15, timeline:[],
   };
@@ -853,14 +853,14 @@ function applySeason(offer, form, fitness, eventEffect){
   let trophyWon = null;
   if(rnd(1,100) <= offer.trophyChance){
     const trophyPool = continentalBoost
-      ? ["League Title","Champions League","Champions League","Domestic Cup"]
-      : ["League Title","Champions League","Domestic Cup"];
+      ? ["League Title","Continental Cup","Continental Cup","Domestic Cup"]
+      : ["League Title","Continental Cup","Domestic Cup"];
     trophyWon = pick(trophyPool);
     state.trophies.push(trophyWon);
     state.stats.HYPE += 12;
     if(trophyWon==="League Title") state.careerStats.leagueTitles++;
     else if(trophyWon==="Domestic Cup") state.careerStats.domesticCups++;
-    else if(trophyWon==="Champions League") state.careerStats.championsLeagues++;
+    else if(trophyWon==="Continental Cup") state.careerStats.continentalCups++;
   }
 
   const tierAdj = {Elite:-1, Big:-0.5, Mid:0, Rising:1}[offer.tier];
@@ -934,10 +934,10 @@ function applySeason(offer, form, fitness, eventEffect){
   const rivalTrophyChance = clamp(rival.talent-25, 5, 75);
   const rivalTrophyWon = rnd(1,100) <= rivalTrophyChance;
   if(rivalTrophyWon){
-    const rivalTrophyType = pick(["League Title","Champions League","Domestic Cup"]);
+    const rivalTrophyType = pick(["League Title","Continental Cup","Domestic Cup"]);
     if(rivalTrophyType==="League Title") state.rivalCareerStats.leagueTitles++;
     else if(rivalTrophyType==="Domestic Cup") state.rivalCareerStats.domesticCups++;
-    else state.rivalCareerStats.championsLeagues++;
+    else state.rivalCareerStats.continentalCups++;
   }
   const rivalMotms = Math.round(rivalApps * (rivalPerf>1.1?0.2:rivalPerf>0.9?0.1:0.03));
   const rivalTotyWon = Math.random() < clamp((rival.talent-40)/100, 0, 0.5)*rivalPhaseMult;
@@ -970,7 +970,7 @@ function applySeason(offer, form, fitness, eventEffect){
       if(playerResult.won) state.careerStats.continentalTitles++;
       if(rivalResult.won) state.rivalCareerStats.continentalTitles++;
     }
-    intlNote = `${isWorldCup?"WORLD CUP":"CONTINENTAL CHAMPIONSHIP"} — ${state.country.flag} reached the ${playerResult.stage}${playerResult.won?" — CHAMPIONS!":""}`;
+    intlNote = `${isWorldCup?"WORLD CUP":"INTERNATIONAL CHAMPIONSHIP"} — ${state.country.flag} reached the ${playerResult.stage}${playerResult.won?" — CHAMPIONS!":""}`;
   }
 
   const note = pick(GRADE_NOTE[grade]);
@@ -1052,8 +1052,8 @@ const LEGACY_CATEGORIES = [
   {key:"cleanSheets", label:"CLEAN SHEETS", posBased:true},
   {key:"leagueTitles", label:"LEAGUE TITLES", posBased:false},
   {key:"domesticCups", label:"DOMESTIC CUPS", posBased:false},
-  {key:"championsLeagues", label:"EUROPEAN CUPS", posBased:false},
-  {key:"continentalTitles", label:"CONTINENTAL TITLES", posBased:false},
+  {key:"continentalCups", label:"CONTINENTAL CUP", posBased:false},
+  {key:"continentalTitles", label:"INTERNATIONAL TITLES", posBased:false},
   {key:"worldCups", label:"WORLD CUPS", posBased:false},
   {key:"motms", label:"MAN OF THE MATCH", posBased:false},
   {key:"totys", label:"TEAM OF THE YEAR", posBased:false},
@@ -1244,7 +1244,7 @@ async function drawShareCard(canvas){
   ctx.fillText("FINAL LEGACY SCORE, HEAD TO HEAD", W/2, boxY+78);
 
   const cs = state.careerStats;
-  const stats = [["LEAGUE TITLES",cs.leagueTitles],["GOALS",cs.goals],["ASSISTS",cs.assists],["EUROPEAN CUPS",cs.championsLeagues],["WORLD CUPS",cs.worldCups],["GOLDEN BALLOONS",cs.goldenBalloons]];
+  const stats = [["LEAGUE TITLES",cs.leagueTitles],["GOALS",cs.goals],["ASSISTS",cs.assists],["CONTINENTAL CUP",cs.continentalCups],["WORLD CUPS",cs.worldCups],["GOLDEN BALLOONS",cs.goldenBalloons]];
   const gridTop = 435; const colW=(W-80)/3; const rowH=95;
   stats.forEach((st,i)=>{
     const col=i%3, row=Math.floor(i/3);
