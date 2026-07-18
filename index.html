@@ -43,6 +43,12 @@
   .btn.small{font-size:9px; padding:10px 8px; box-shadow:4px 4px 0 #000;}
   .btn.small:active:not(:disabled){transform:translate(4px,4px); box-shadow:0 0 0 #000;}
   .btn.small:disabled{color:#5a5678; box-shadow:4px 4px 0 #1a1830;}
+  .name-input{width:100%; font-family:'Press Start 2P',monospace; font-size:11px; background:var(--bg); border:3px solid #000; color:var(--paper); padding:12px; outline:none;}
+  .name-input::placeholder{color:var(--dim);}
+  .char-create-row{display:flex; align-items:center; justify-content:center; gap:14px; margin-top:16px;}
+  .arrow-btn{font-family:'Press Start 2P',monospace; font-size:16px; background:var(--gold); color:#000; border:3px solid #000; padding:10px 14px; cursor:pointer; box-shadow:3px 3px 0 #000;}
+  .arrow-btn:active{transform:translate(3px,3px); box-shadow:0 0 0 #000;}
+  .sprite-preview{display:flex; align-items:center; justify-content:center; min-width:100px; min-height:130px;}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   .pick{background:var(--panel); border:3px solid #000; box-shadow:4px 4px 0 rgba(0,0,0,0.5); padding:10px; cursor:pointer; text-align:left; color:var(--paper);}
   .pick.selected{background:#2c2760; border-color:var(--gold); box-shadow:4px 4px 0 var(--gold);}
@@ -223,6 +229,7 @@ const COUNTRIES = [
   {name:"Poland", flag:"🇵🇱", stat:"FIN", note:"Clinical", pedigree:40},{name:"Sweden", flag:"🇸🇪", stat:"FIN", note:"Ice Cold", pedigree:45},
   {name:"Denmark", flag:"🇩🇰", stat:"DEF", note:"Structure", pedigree:48},{name:"Switzerland", flag:"🇨🇭", stat:"DEF", note:"Precision", pedigree:42},
   {name:"Egypt", flag:"🇪🇬", stat:"FIN", note:"Pharaoh", pedigree:38},{name:"Scotland", flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", stat:"DEF", note:"Backs to the Wall", pedigree:26},
+  {name:"Ireland", flag:"🇮🇪", stat:"DEF", note:"Never Say Die", pedigree:27},
 ];
 const POSITIONS = [
   {code:"GK", name:"Goalkeeper", w:{FIN:0.1,CRE:0.1,DEF:1.4,HYPE:0.6}, note:"Hardest bar in the sport."},
@@ -328,11 +335,29 @@ const HOME_CLUBS = {
   Switzerland:[["Young Boys","Contini","Mid","balanced"],["Basel","Ludovic Magnin","Rising","direct"],["Servette","Häberli","Rising","possession"],["Lugano","Croci-Torti","Rising","direct"]],
   Egypt:[["Al Ahly","Koller","Mid","direct"],["Zamalek","Osama Nabih","Rising","balanced"],["Pyramids FC","Ehab Galal","Rising","possession"],["Al Ittihad","Hossam Hassan","Rising","direct"]],
   Scotland:[["Celtic","Rodgers","Mid","possession"],["Rangers","Russell Martin","Rising","direct"],["Hearts","Critchley","Rising","balanced"],["Aberdeen","Thelin","Rising","direct"]],
+  Ireland:[["Shamrock Rovers","Bradley","Rising","direct"],["Dundalk","Hoare","Rising","balanced"],["Bohemians","Byrne","Rising","direct"],["St Patrick's Athletic","Doolin","Rising","possession"]],
 };
 const HOME_FLAVOR = "Home soil, first professional contract. The whole nation is watching your debut.";
 
-const RIVAL_FIRST = ["Kai","Jude","Lamine","Erling","Vinicius","Bukayo","Florian","Pedri","Jamal","Rodrigo","Victor","Khvicha","Endrick","Alejandro"];
-const RIVAL_LAST = ["Werner","Bello","García","Solberg","Adeyemi","Nakamura","Wirtz","Costa","Musiala","Diallo","Osei","Kvara","Ferreira","Duran"];
+/* Rival roster — each name paired with their actual nationality */
+const RIVAL_ROSTER = [
+  {name:"Harold Griffiths", country:"Wales"},
+  {name:"Matthew Hopes", country:"Wales"},
+  {name:"Samuel J. Hoare", country:"Wales"},
+  {name:"Josh Staffo", country:"Wales"},
+  {name:"Big Vinny", country:"Wales"},
+  {name:"Scooby Scooter", country:"Wales"},
+  {name:"Bamo Blade", country:"Ireland"},
+  {name:"Jark Dumbleton", country:"England"},
+  {name:"Jimbo Elliot", country:"England"},
+  {name:"Daniel Potts", country:"England"},
+  {name:"James Coxy", country:"England"},
+  {name:"Mike Shaw", country:"Wales"},
+  {name:"Jorge Bowen", country:"Colombia"},
+  {name:"James Bowen", country:"England"},
+  {name:"Jack Williams", country:"Wales"},
+  {name:"Josh Dixon", country:"England"},
+];
 
 const ROLE_META = {
   STARTER:  {label:"STARTER",         variance:[0.70,1.40], baseline:7},
@@ -382,6 +407,7 @@ let state = resetState();
 function resetState(){
   return {
     screen:"intro", country:null, position:null, round:0,
+    playerName:"", playerColorIndex:0,
     stats:{FIN:0,CRE:0,DEF:0,HYPE:0}, trophies:[], log:[],
     rating:15, peakRating:15, scoutReports:3, consecutiveYearsAtClub:0,
     currentClub:null, lastGrade:null, currentOffers:[], finalScore:0,
@@ -393,6 +419,14 @@ function resetState(){
     rival:null, rivalRating:15, timeline:[],
   };
 }
+const PLAYER_COLORS = [
+  {name:"GOLD", hex:"#ffd23f"},
+  {name:"CRIMSON", hex:"#ff4d5e"},
+  {name:"SKY BLUE", hex:"#3fa7ff"},
+  {name:"EMERALD", hex:"#3ddc46"},
+  {name:"PURPLE", hex:"#a25dff"},
+  {name:"ORANGE", hex:"#ff9d3f"},
+];
 
 function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
@@ -599,6 +633,7 @@ function render(){
 
   const screen = document.createElement("div"); screen.className="screen"; app.appendChild(screen);
   if(state.screen==="intro") renderIntro(screen);
+  else if(state.screen==="createCharacter") renderCreateCharacter(screen);
   else if(state.screen==="country") renderCountry(screen);
   else if(state.screen==="position") renderPosition(screen);
   else if(state.screen==="rivalReveal") renderRivalReveal(screen);
@@ -627,8 +662,45 @@ function renderIntro(s){
     <span class="badge px">STAY OR MOVE</span><span class="badge px">3 SCOUT REPORTS</span></div>`;
   s.appendChild(badges);
   const btn=document.createElement('button'); btn.className='btn'; btn.textContent='BEGIN CAREER';
-  btn.onclick=()=>{state.screen="country"; render();};
+  btn.onclick=()=>{state.screen="createCharacter"; render();};
   s.appendChild(btn);
+}
+
+function renderCreateCharacter(s){
+  s.innerHTML = `<div class="eyebrow px">CREATE YOUR PLAYER</div>`;
+  const h2=document.createElement('h2'); h2.className='px'; h2.textContent='NAME & COLOURS'; s.appendChild(h2);
+
+  const panel=document.createElement('div'); panel.className='pixel-panel';
+  const nameLbl=document.createElement('div'); nameLbl.className='eyebrow px'; nameLbl.style.marginBottom='8px'; nameLbl.textContent='PLAYER NAME';
+  panel.appendChild(nameLbl);
+  const nameInput=document.createElement('input'); nameInput.type='text'; nameInput.className='name-input';
+  nameInput.maxLength=18; nameInput.placeholder='ENTER YOUR NAME'; nameInput.value=state.playerName;
+  panel.appendChild(nameInput);
+
+  const swatchWrap=document.createElement('div'); swatchWrap.className='char-create-row';
+  const prevBtn=document.createElement('button'); prevBtn.className='arrow-btn'; prevBtn.textContent='◀';
+  const spriteHolder=document.createElement('div'); spriteHolder.className='sprite-preview';
+  const nextBtn=document.createElement('button'); nextBtn.className='arrow-btn'; nextBtn.textContent='▶';
+  swatchWrap.appendChild(prevBtn); swatchWrap.appendChild(spriteHolder); swatchWrap.appendChild(nextBtn);
+  panel.appendChild(swatchWrap);
+  const colorLbl=document.createElement('div'); colorLbl.className='px'; colorLbl.style.textAlign='center'; colorLbl.style.fontSize='10px'; colorLbl.style.color='var(--gold)'; colorLbl.style.marginTop='8px';
+  panel.appendChild(colorLbl);
+
+  function refreshPreview(){
+    spriteHolder.innerHTML='';
+    spriteHolder.appendChild(spriteEl(PLAYER_GRID, playerPalette(PLAYER_COLORS[state.playerColorIndex].hex), 8));
+    colorLbl.textContent = PLAYER_COLORS[state.playerColorIndex].name;
+  }
+  refreshPreview();
+  prevBtn.onclick=()=>{ state.playerColorIndex = (state.playerColorIndex - 1 + PLAYER_COLORS.length) % PLAYER_COLORS.length; refreshPreview(); };
+  nextBtn.onclick=()=>{ state.playerColorIndex = (state.playerColorIndex + 1) % PLAYER_COLORS.length; refreshPreview(); };
+
+  s.appendChild(panel);
+
+  const nextScreenBtn=document.createElement('button'); nextScreenBtn.className='btn'; nextScreenBtn.textContent='CONTINUE'; nextScreenBtn.disabled=true;
+  nameInput.oninput=()=>{ state.playerName = nameInput.value; nextScreenBtn.disabled = nameInput.value.trim().length===0; };
+  nextScreenBtn.onclick=()=>{ state.screen="country"; render(); };
+  s.appendChild(nextScreenBtn);
 }
 
 function renderCountry(s){
@@ -662,10 +734,11 @@ function renderPosition(s){
 }
 
 function generateRival(){
-  const country = pick(COUNTRIES);
+  const roster = pick(RIVAL_ROSTER);
+  const country = COUNTRIES.find(c=>c.name===roster.country) || pick(COUNTRIES);
   const position = pick(POSITIONS);
   const talent = rnd(62,92);
-  return {name: pick(RIVAL_FIRST)+" "+pick(RIVAL_LAST), country, position, talent};
+  return {name: roster.name, country, position, talent};
 }
 
 function renderRivalReveal(s){
@@ -1092,7 +1165,7 @@ function renderResults(s){
   const scoreboard=document.createElement('div'); scoreboard.className='scoreboard';
   scoreboard.innerHTML=`
     <div style="display:flex; justify-content:center; gap:26px; align-items:baseline;">
-      <div><div class="score-num" style="color:var(--gold);">${you}</div><div class="score-lbl px">YOU</div></div>
+      <div><div class="score-num" style="color:var(--gold);">${you}</div><div class="score-lbl px">${(state.playerName||"YOU").toUpperCase()}</div></div>
       <div class="px" style="font-size:16px; color:var(--dim);">VS</div>
       <div><div class="score-num" style="color:var(--red);">${riv}</div><div class="score-lbl px">${state.rival.name.split(' ')[0].toUpperCase()}</div></div>
     </div>
@@ -1104,7 +1177,7 @@ function renderResults(s){
     const heroRow=document.createElement('div'); heroRow.className='hero-row';
     heroRow.appendChild(spriteEl(SOCRATES_GRID, SOCRATES_PALETTE, 5));
     heroRow.appendChild(spriteEl(TROPHY_GRID, TROPHY_PALETTE, 5));
-    heroRow.appendChild(spriteEl(PLAYER_GRID, playerPalette(state.country.stat==="HYPE"?"#ffd23f":"#ff4d5e"), 5));
+    heroRow.appendChild(spriteEl(PLAYER_GRID, playerPalette(PLAYER_COLORS[state.playerColorIndex].hex), 5));
     heroPanel.appendChild(heroRow);
     const cap=document.createElement('div'); cap.className='hero-caption';
     cap.innerHTML=`<b>SÓCRATES NODS FROM THE STANDS.</b><br>you've built a legacy that actually deserves the No.10.`;
@@ -1225,15 +1298,16 @@ async function drawShareCard(canvas){
   wrapCanvasText(ctx, won? "GREATEST OF YOUR GEN." : tied? "A LEGENDARY RIVALRY" : `IN ${state.rival.name.split(' ')[0].toUpperCase()}'S SHADOW`, W/2, 96, W-80, 26);
 
   ctx.font="14px 'Press Start 2P'"; ctx.fillStyle="#7d78a8";
-  ctx.fillText(`${state.country.name.toUpperCase()} · ${state.position.name.toUpperCase()}`, W/2, 140);
+  ctx.fillText(`${(state.playerName||"").toUpperCase()}${state.playerName? " · ":""}${state.country.name.toUpperCase()} · ${state.position.name.toUpperCase()}`, W/2, 140);
 
   const centerX = W/2;
+  const myColor = PLAYER_COLORS[state.playerColorIndex].hex;
   if(won){
     drawSpriteCanvas(ctx, SOCRATES_GRID, SOCRATES_PALETTE, 7, centerX-140, 165);
     drawSpriteCanvas(ctx, TROPHY_GRID, TROPHY_PALETTE, 7, centerX-28, 175);
-    drawSpriteCanvas(ctx, PLAYER_GRID, playerPalette("#ff4d5e"), 7, centerX+56, 165);
+    drawSpriteCanvas(ctx, PLAYER_GRID, playerPalette(myColor), 7, centerX+56, 165);
   } else {
-    drawSpriteCanvas(ctx, PLAYER_GRID, playerPalette(TIER_JERSEY[state.currentClub?state.currentClub.tier:"Mid"]), 9, centerX-42, 165);
+    drawSpriteCanvas(ctx, PLAYER_GRID, playerPalette(myColor), 9, centerX-42, 165);
   }
 
   const boxY = 320;
