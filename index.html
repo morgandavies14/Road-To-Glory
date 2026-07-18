@@ -25,7 +25,7 @@
       repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 24px),
       linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
     border-left:4px solid #000; border-right:4px solid #000;}
-  .topbar{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:4px solid #000; background:var(--panel);}
+  .topbar{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:4px solid #000; background:var(--panel); flex-wrap:wrap; row-gap:6px;}
   .topbar .px{font-size:11px; color:var(--gold); letter-spacing:1px;}
   .rep-tag{font-family:'Press Start 2P',monospace; font-size:9px; color:var(--paper); display:flex; align-items:center; gap:6px;}
   .rep-tag .bar{width:50px; height:8px; background:#000; border:2px solid #000;}
@@ -291,14 +291,14 @@ const RIVAL_LAST = ["Werner","Bello","García","Solberg","Adeyemi","Nakamura","W
 const ROLE_META = {
   STARTER:  {label:"STARTER",         variance:[0.70,1.40], baseline:7, minutesMult:1.00},
   ROTATION: {label:"ROTATION RISK",   variance:[0.30,1.60], baseline:5, minutesMult:0.60},
-  REBUILD:  {label:"REBUILD CONTRACT",variance:[0.70,1.30], baseline:6, minutesMult:1.00, repBonus:6},
-  BREAKOUT: {label:"BREAKOUT MOVE",   variance:[0.60,1.50], baseline:7, minutesMult:1.00, repBonus:3},
+  REBUILD:  {label:"REBUILD CONTRACT",variance:[0.70,1.30], baseline:6, minutesMult:1.00, ratingBonus:4},
+  BREAKOUT: {label:"BREAKOUT MOVE",   variance:[0.60,1.50], baseline:7, minutesMult:1.00, ratingBonus:2},
 };
 
 const STAY_EVENTS = [
   {key:"sacked", weight:20, text:"Pre-season update: the manager was sacked in August. The new coach doesn't rate you.", effect:{roleOverride:"ROTATION"}},
   {key:"injury", weight:15, text:"Pre-season update: a hidden injury layoff cost you six weeks of the season.", effect:{minutesCut:0.55}},
-  {key:"captain", weight:15, text:"Pre-season update: new deal signed — you've been handed the captaincy.", effect:{repBonus:5, hypeBonus:10}},
+  {key:"captain", weight:15, text:"Pre-season update: new deal signed — you've been handed the captaincy.", effect:{ratingBonus:4, hypeBonus:10}},
   {key:"quiet", weight:50, text:"Pre-season update: a quiet summer at the club. Nothing changed.", effect:{}},
 ];
 
@@ -310,7 +310,7 @@ function resetState(){
   return {
     screen:"intro", country:null, position:null, round:0,
     stats:{FIN:0,CRE:0,DEF:0,HYPE:0}, trophies:[], log:[],
-    reputation:50, peakReputation:50, scoutReports:3,
+    rating:15, peakRating:15, scoutReports:3, consecutiveYearsAtClub:0,
     currentClub:null, lastGrade:null, currentOffers:[], finalScore:0,
     pendingSummary:null,
     careerStats:{apps:0, goals:0, assists:0, yellows:0, reds:0, cleanSheets:0},
@@ -340,11 +340,11 @@ function pickTier(phase){
   return weightedPick(w.map(([t,wt])=>({tier:t,weight:wt}))).tier;
 }
 
-function roleForOffer(tier, reputation){
+function roleForOffer(tier, rating){
   let starterChance;
-  if(tier==="Elite") starterChance = reputation>=80?70:reputation>=60?35:10;
-  else if(tier==="Big") starterChance = reputation>=60?75:reputation>=40?45:20;
-  else if(tier==="Mid") starterChance = reputation>=30?85:60;
+  if(tier==="Elite") starterChance = rating>=80?70:rating>=60?35:10;
+  else if(tier==="Big") starterChance = rating>=60?75:rating>=40?45:20;
+  else if(tier==="Mid") starterChance = rating>=30?85:60;
   else starterChance = 90;
   return Math.random()*100 < starterChance ? "STARTER" : "ROTATION";
 }
@@ -403,7 +403,7 @@ function genOffers(){
     let choice = pick(clubs), tries=0;
     while((usedClubs.has(choice[0]) || pickedNames.has(choice[0])) && tries<20){ choice = pick(clubs); tries++; }
     const [name,manager,style] = choice;
-    const role = roleForOffer(tier, state.reputation);
+    const role = roleForOffer(tier, state.rating);
     const {teamQuality, trophyChance, hype} = tierStats(tier);
     pickedNames.add(name);
     forced.push({club:name, manager, tier, style, role, roleMeta:ROLE_META[role], teamQuality, trophyChance, hype, flavor:pick(FLAVORS[tier]), revealed:false});
@@ -413,10 +413,14 @@ function genOffers(){
 
   if(state.currentClub){
     const cc = state.currentClub;
-    const role = roleForOffer(cc.tier, state.reputation);
+    const role = roleForOffer(cc.tier, state.rating);
+    const yearsAtClub = state.consecutiveYearsAtClub || 1;
+    const stayFlavor = yearsAtClub>=3
+      ? "You've learned everything this level can teach you. Growth here is drying up — time to test yourself elsewhere?"
+      : "You know this dressing room. No surprises... probably.";
     offers.push({club:cc.name, manager:cc.manager, tier:cc.tier, style:cc.style, role, roleMeta:ROLE_META[role],
-      teamQuality:cc.teamQuality, trophyChance:cc.trophyChance, hype:cc.hype,
-      flavor:"You know this dressing room. No surprises... probably.", revealed:true, isStay:true});
+      teamQuality:cc.teamQuality, trophyChance:cc.trophyChance, hype:cc.hype, yearsAtClub,
+      flavor:stayFlavor, revealed:true, isStay:true});
   }
   return offers;
 }
@@ -425,7 +429,7 @@ function genOffers(){
 function pipMeterRow(container, label, value, cls, revealed){
   const wrap = document.createElement('div'); wrap.className='meter';
   const lbl = document.createElement('div'); lbl.className='lbl';
-  lbl.innerHTML = `<span>${label}</span>${revealed?'':`<span class="band-pill">${bandLabel(value)}</span>`}`;
+  lbl.innerHTML = `<span>${label}</span>${revealed?'':`<span class="band-pill">???</span>`}`;
   wrap.appendChild(lbl);
   if(revealed){
     const pips = document.createElement('div'); pips.className='pips';
@@ -440,13 +444,23 @@ function pipMeterRow(container, label, value, cls, revealed){
   container.appendChild(wrap);
 }
 
+function ratingTagline(r){
+  if(r>=90) return "GLOBAL ICON";
+  if(r>=75) return "WORLD CLASS";
+  if(r>=60) return "STAR MAN";
+  if(r>=45) return "FIRST-TEAM REGULAR";
+  if(r>=30) return "RISING BALLER";
+  if(r>=15) return "SQUAD FILLER";
+  return "TRIALIST";
+}
+
 function render(){
   const app = document.getElementById("app"); app.innerHTML = "";
   const top = document.createElement("div"); top.className="topbar";
   top.innerHTML = `<span class="px" style="font-size:12px;">&#9724; ROAD TO GOLD</span>`;
   if(state.screen==="draft" || state.screen==="summary"){
     const rt = document.createElement('div'); rt.className='rep-tag';
-    rt.innerHTML = `<span>REP ${state.reputation}</span><span class="bar"><span class="f" style="width:${state.reputation}%"></span></span>`;
+    rt.innerHTML = `<span>RATING ${state.rating} <span style="color:var(--gold);">· ${ratingTagline(state.rating)}</span></span><span class="bar"><span class="f" style="width:${state.rating}%"></span></span>`;
     top.appendChild(rt);
   }
   app.appendChild(top);
@@ -484,7 +498,7 @@ function renderIntro(s){
   heroPanel.appendChild(cap); s.appendChild(heroPanel);
   const badges=document.createElement('div'); badges.className='pixel-panel';
   badges.innerHTML=`<div class="badge-row">
-    <span class="badge px">15 SEASONS</span><span class="badge px">REPUTATION</span>
+    <span class="badge px">15 SEASONS</span><span class="badge px">RATING GROWTH</span>
     <span class="badge px">STAY OR MOVE</span><span class="badge px">3 SCOUT REPORTS</span></div>`;
   s.appendChild(badges);
   const btn=document.createElement('button'); btn.className='btn'; btn.textContent='BEGIN CAREER';
@@ -571,6 +585,7 @@ function renderDraft(s){
         <span class="tier-tag ${o.tier}">${o.tier.toUpperCase()}</span>
         <span class="role-tag ${o.role}">${o.roleMeta.label}</span>
         <span class="style-tag">${STYLE_ICON[o.style]}</span>
+        ${o.isStay? `<span class="style-tag">YEAR ${o.yearsAtClub} HERE</span>`:''}
       </div>
       <div class="manager">Manager: ${o.manager}</div>
       <div class="flavor">"${o.flavor}"</div>
@@ -657,13 +672,12 @@ function resolveOffer(offer){
 function gradeFromDelta(delta){
   if(delta>=4) return "S"; if(delta>=2) return "A"; if(delta>=-1) return "B"; if(delta>=-3) return "C"; return "D";
 }
-const GRADE_REP = {S:12, A:7, B:2, C:-4, D:-10};
 const GRADE_NOTE = {
   S:["Career-defining form. Every scout in Europe is calling.","A season for the highlight reel — this is Ballon d'Or form."],
   A:["Excellent campaign. Genuinely elite output.","One of the standout performers in the league this year."],
   B:["Solid, dependable, exactly what was asked of you.","Did the job. No more, no less."],
   C:["Below expectations — questions being asked already.","A quiet, forgettable season."],
-  D:["A poor campaign. Reputation is taking a real hit.","Struggled for form and for minutes."],
+  D:["A poor campaign. Your rating is taking a real hit.","Struggled for form and for minutes."],
 };
 
 function applySeason(offer, form, fitness, eventEffect){
@@ -716,11 +730,26 @@ function applySeason(offer, form, fitness, eventEffect){
   let grade = gradeFromDelta(delta);
   if(trophyWon){ const order=["D","C","B","A","S"]; grade = order[Math.min(order.length-1, order.indexOf(grade)+1)]; }
 
-  let repDelta = GRADE_REP[grade];
-  if(roleMeta.repBonus) repDelta += roleMeta.repBonus;
-  if(eventEffect.repBonus) repDelta += eventEffect.repBonus;
-  state.reputation = clamp(state.reputation + repDelta, 0, 100);
-  state.peakReputation = Math.max(state.peakReputation, state.reputation);
+  /* consecutive years at the same club — tracked BEFORE currentClub is overwritten below */
+  const stayedPut = state.currentClub && offer.club === state.currentClub.name;
+  state.consecutiveYearsAtClub = stayedPut ? (state.consecutiveYearsAtClub + 1) : 1;
+
+  const TIER_CEILING = {Rising:40, Mid:65, Big:85, Elite:100};
+  const STAY_DIMINISH = [1.0, 0.8, 0.55, 0.35, 0.15]; // by consecutive year, index clamps at last
+  const GRADE_MULT = {S:1.0, A:0.75, B:0.45, C:0.15, D:0};
+
+  const ceiling = TIER_CEILING[offer.tier];
+  const diminish = STAY_DIMINISH[clamp(state.consecutiveYearsAtClub-1, 0, STAY_DIMINISH.length-1)];
+  const headroom = Math.max(0, ceiling - state.rating);
+  let ratingDelta = Math.round(headroom * 0.35 * diminish * GRADE_MULT[grade]);
+  if(grade==="D") ratingDelta -= 5; // a poor season actively costs you, not just "no growth"
+  if(trophyWon) ratingDelta += 3;
+  if(roleMeta.ratingBonus) ratingDelta += roleMeta.ratingBonus;
+  if(eventEffect.ratingBonus) ratingDelta += eventEffect.ratingBonus;
+  ratingDelta = clamp(ratingDelta, -15, 20);
+
+  state.rating = clamp(state.rating + ratingDelta, 0, 100);
+  state.peakRating = Math.max(state.peakRating, state.rating);
   state.lastGrade = grade;
 
   state.currentClub = {name:offer.club, manager:offer.manager, tier:offer.tier, style:offer.style,
@@ -744,7 +773,7 @@ function applySeason(offer, form, fitness, eventEffect){
   state.log.push({club:offer.club, grade, seasonStats,
     text:`<b>${offer.club}</b> (Year ${state.round+1}, age ${START_AGE+state.round}) — ${roleMeta.label}. ${note}${trophyWon? ` Lifted the ${trophyWon}!`:''}`});
 
-  state.pendingSummary = {grade, repDelta, note, trophyWon, club:offer.club, seasonStats, seasonScore, rivalScore, rivalTrophyWon, winner};
+  state.pendingSummary = {grade, ratingDelta, note, trophyWon, club:offer.club, seasonStats, seasonScore, rivalScore, rivalTrophyWon, winner};
   state.round++;
   state.screen = "summary";
   render();
@@ -754,8 +783,8 @@ function renderSummary(s){
   const p = state.pendingSummary;
   const h2=document.createElement('h2'); h2.className='px'; h2.textContent=`SEASON REVIEW — ${p.club.toUpperCase()}`; s.appendChild(h2);
   const badge=document.createElement('div'); badge.className='grade-badge '+p.grade; badge.textContent=p.grade; s.appendChild(badge);
-  const rd=document.createElement('div'); rd.className='rep-delta '+(p.repDelta>=0?'up':'down');
-  rd.textContent = `REPUTATION ${p.repDelta>=0?'+':''}${p.repDelta} → ${state.reputation}`;
+  const rd=document.createElement('div'); rd.className='rep-delta '+(p.ratingDelta>=0?'up':'down');
+  rd.textContent = `RATING ${p.ratingDelta>=0?'+':''}${p.ratingDelta} → ${state.rating}`;
   s.appendChild(rd);
   const noteEl=document.createElement('div'); noteEl.className='scout-note';
   noteEl.textContent = `"${p.note}"${p.trophyWon? ` Lifted the ${p.trophyWon}.`:''}`;
@@ -809,7 +838,7 @@ function finalizeCareer(){
   const pos = state.position.w; const st = state.stats;
   let score = st.FIN*pos.FIN*0.6 + st.CRE*pos.CRE*0.6 + st.DEF*pos.DEF*0.6 + st.HYPE*0.5;
   score += state.trophies.length * 14;
-  score += state.peakReputation * 0.5;
+  score += state.peakRating * 0.5;
   state.finalScore = Math.round(score);
   state.screen="results"; render();
 }
@@ -860,7 +889,7 @@ function renderResults(s){
   const cs = state.careerStats;
   const h3s=document.createElement('h3'); h3s.className='px'; h3s.textContent='CAREER TOTALS'; s.appendChild(h3s);
   const csGrid=document.createElement('div'); csGrid.className='stat-grid';
-  [["TROPHIES",state.trophies.length],["GOALS",cs.goals],["ASSISTS",cs.assists],["APPS",cs.apps],["CLEAN SHEETS",cs.cleanSheets],["PEAK REP",state.peakReputation]].forEach(([k,v])=>{
+  [["TROPHIES",state.trophies.length],["GOALS",cs.goals],["ASSISTS",cs.assists],["APPS",cs.apps],["CLEAN SHEETS",cs.cleanSheets],["PEAK RATING",state.peakRating]].forEach(([k,v])=>{
     const cell=document.createElement('div'); cell.className='stat-cell';
     cell.innerHTML = `<div class="v">${v}</div><div class="k">${k}</div>`;
     csGrid.appendChild(cell);
