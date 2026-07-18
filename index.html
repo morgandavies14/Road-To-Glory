@@ -946,10 +946,13 @@ function applySeason(offer, form, fitness, eventEffect){
   if(rivalTotyWon) state.rivalCareerStats.totys++;
 
   /* Golden Balloon: this year's individual-award vote, tallied silently, revealed only at career's end.
-     A wider field of contenders exists too — not every year's award has to go to just these two. */
-  const seasonScore = gainFIN*pos.FIN*0.6 + gainCRE*pos.CRE*0.6 + gainDEF*pos.DEF*0.6 + gainHYPE*0.5 + (trophyWon?14:0);
-  let rivalScore = rival.talent * rivalPhaseMult * rivalPerf;
-  if(rivalTrophyWon) rivalScore += 14;
+     A wider field of contenders exists too — not every year's award has to go to just these two.
+     NOTE: seasonScore sums the raw stat gains directly — gainFIN/CRE/DEF already carry the position
+     weight baked in from the calc above, so we must NOT multiply by pos.FIN/CRE/DEF again here (that
+     old double-count was quietly making this vote nearly unwinnable regardless of how well you played). */
+  const seasonScore = gainFIN*0.6 + gainCRE*0.6 + gainDEF*0.6 + gainHYPE*0.5 + (trophyWon?18:0);
+  let rivalScore = rival.talent * rivalPhaseMult * rivalPerf * 0.55;
+  if(rivalTrophyWon) rivalScore += 18;
   const fieldScore = Math.max(seasonScore, rivalScore) * (0.55 + Math.random()*0.7);
   const topScore = Math.max(seasonScore, rivalScore, fieldScore);
   if(topScore===fieldScore) { /* someone else entirely wins it this year */ }
