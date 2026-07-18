@@ -74,6 +74,9 @@
   .role-tag.REBUILD{background:var(--orange); color:#000;}
   .role-tag.BREAKOUT{background:var(--purple); color:#000;}
   .style-tag{background:#000; color:var(--dim); border-color:var(--dim);}
+  .incentive-tag{font-family:'Press Start 2P',monospace; font-size:7px; padding:3px 5px; border:2px solid var(--gold); background:#000; color:var(--gold);}
+  .incentive-tag.hidden{border-color:var(--dim); color:var(--dim);}
+  .incentive-desc{font-size:14px; color:var(--gold); margin-top:6px; line-height:1.35; border-top:1px dashed var(--dim); padding-top:6px;}
   .offer .manager{font-size:13px; color:var(--dim); margin-top:6px;}
   .offer .flavor{font-size:15px; color:var(--dim); margin-top:4px; line-height:1.3;}
   .meter-row{display:flex; gap:10px; margin-top:8px; align-items:flex-end;}
@@ -332,18 +335,45 @@ const RIVAL_FIRST = ["Kai","Jude","Lamine","Erling","Vinicius","Bukayo","Florian
 const RIVAL_LAST = ["Werner","Bello","García","Solberg","Adeyemi","Nakamura","Wirtz","Costa","Musiala","Diallo","Osei","Kvara","Ferreira","Duran"];
 
 const ROLE_META = {
-  STARTER:  {label:"STARTER",         variance:[0.70,1.40], baseline:7, minutesMult:1.00},
-  ROTATION: {label:"ROTATION RISK",   variance:[0.30,1.60], baseline:5, minutesMult:0.60},
-  REBUILD:  {label:"REBUILD CONTRACT",variance:[0.70,1.30], baseline:6, minutesMult:1.00, ratingBonus:4},
-  BREAKOUT: {label:"BREAKOUT MOVE",   variance:[0.60,1.50], baseline:7, minutesMult:1.00, ratingBonus:2},
+  STARTER:  {label:"STARTER",         variance:[0.70,1.40], baseline:7},
+  ROTATION: {label:"ROTATION RISK",   variance:[0.30,1.60], baseline:5},
+  REBUILD:  {label:"REBUILD CONTRACT",variance:[0.70,1.30], baseline:6, ratingBonus:4},
+  BREAKOUT: {label:"BREAKOUT MOVE",   variance:[0.60,1.50], baseline:7, ratingBonus:2},
+};
+/* expected share of a season's minutes, by role — rolled per offer so two STARTER offers can still differ */
+const GAME_TIME_RANGE = {
+  STARTER:  [70,95],
+  ROTATION: [20,55],
+  REBUILD:  [75,95],
+  BREAKOUT: [75,95],
 };
 
 const STAY_EVENTS = [
   {key:"sacked", weight:20, text:"Pre-season update: the manager was sacked in August. The new coach doesn't rate you.", effect:{roleOverride:"ROTATION"}},
   {key:"injury", weight:15, text:"Pre-season update: a hidden injury layoff cost you six weeks of the season.", effect:{minutesCut:0.55}},
   {key:"captain", weight:15, text:"Pre-season update: new deal signed — you've been handed the captaincy.", effect:{ratingBonus:4, hypeBonus:10}},
-  {key:"quiet", weight:50, text:"Pre-season update: a quiet summer at the club. Nothing changed.", effect:{}},
+  {key:"financial", weight:12, text:"Pre-season update: the club is in financial trouble and needs to sell. Stay, and expect a squad stripped for cash.", effect:{roleOverride:"ROTATION", teamQualityHit:10}},
+  {key:"quiet", weight:38, text:"Pre-season update: a quiet summer at the club. Nothing changed.", effect:{}},
 ];
+
+/* Hidden signing incentives — only visible once an offer is scouted */
+const INCENTIVE_POOL = [
+  {key:"captain3", label:"CAPTAIN WITHIN 3 YEARS", desc:"Stay 3 straight seasons at B-grade or better and you're made captain — a lasting Rating and Hype boost.", tiers:["Mid","Rising"]},
+  {key:"teamBuilt", label:"TEAM BUILT AROUND YOU", desc:"The club is building its identity around your game — a lasting boost to your strongest output for the life of this deal.", tiers:["Mid","Rising","Big"]},
+  {key:"releaseClause", label:"RELEASE CLAUSE", desc:"A release clause guarantees a forced big-club offer once your Rating crosses a threshold.", tiers:["Mid","Rising"]},
+  {key:"noRotation", label:"NO-ROTATION CLAUSE", desc:"Guaranteed Starter role for this entire contract, whatever your Rating says.", tiers:["Big","Elite"]},
+  {key:"continental", label:"CONTINENTAL AMBITION CLAUSE", desc:"The board is building for Europe — noticeably boosted European Cup odds.", tiers:["Big","Elite"]},
+];
+function maybeAssignIncentive(tier){
+  if(Math.random() > 0.35) return null;
+  const pool = INCENTIVE_POOL.filter(i=>i.tiers.includes(tier));
+  if(!pool.length) return null;
+  const template = pick(pool);
+  const incentive = {key:template.key, label:template.label, desc:template.desc};
+  if(incentive.key==="teamBuilt") incentive.statBoost = pick(["FIN","CRE","DEF"]);
+  if(incentive.key==="releaseClause") incentive.threshold = rnd(65,82);
+  return incentive;
+}
 
 const TOTAL_ROUNDS = 15;
 const START_AGE = 18;
@@ -397,11 +427,13 @@ function roleForOffer(tier, rating){
 
 function bandLabel(v){ return v<40?"LOW":v<70?"MED":"HIGH"; }
 
-function tierStats(tier){
+function tierStats(tier, role){
   const teamQuality = tier==="Elite"?rnd(85,98):tier==="Big"?rnd(70,86):tier==="Mid"?rnd(55,72):rnd(38,58);
   const trophyChance = tier==="Elite"?rnd(55,80):tier==="Big"?rnd(30,50):tier==="Mid"?rnd(10,25):rnd(2,12);
   const hype = tier==="Elite"?rnd(80,100):tier==="Big"?rnd(55,75):tier==="Mid"?rnd(30,50):rnd(15,35);
-  return {teamQuality, trophyChance, hype};
+  const [gtLo,gtHi] = GAME_TIME_RANGE[role] || GAME_TIME_RANGE.STARTER;
+  const gameTime = rnd(gtLo,gtHi);
+  return {teamQuality, trophyChance, hype, gameTime};
 }
 
 function genOffers(){
@@ -409,19 +441,29 @@ function genOffers(){
   const usedClubs = new Set(state.log.map(l=>l.club));
   if(state.currentClub) usedClubs.add(state.currentClub.name);
 
+  /* natural squad churn: a club you've stayed at slowly degrades if you don't move on */
+  if(state.currentClub && state.consecutiveYearsAtClub>=1){
+    const decayChance = clamp(10 + state.consecutiveYearsAtClub*15, 10, 70);
+    if(rnd(1,100) <= decayChance){
+      state.currentClub.teamQuality = Math.max(20, state.currentClub.teamQuality - rnd(2,6));
+    }
+  }
+
   const homeClubs = HOME_CLUBS[state.country.name];
   if(state.round === 0 && homeClubs){
     const picks = [...homeClubs].sort(()=>Math.random()-0.5).slice(0,3);
     return picks.map(([name,manager,tier,style])=>{
-      const {teamQuality, trophyChance, hype} = tierStats(tier);
+      const {teamQuality, trophyChance, hype, gameTime} = tierStats(tier, "STARTER");
       return {club:name, manager, tier, style, role:"STARTER", roleMeta:ROLE_META.STARTER,
-        teamQuality, trophyChance, hype, flavor:HOME_FLAVOR, revealed:false, isHome:true};
+        teamQuality, trophyChance, hype, gameTime, flavor:HOME_FLAVOR, revealed:false, isHome:true, incentive:null};
     });
   }
 
   const offers = [];
   const breakoutFlag = state.lastGrade && ["S","A"].includes(state.lastGrade) && state.currentClub && ["Mid","Rising"].includes(state.currentClub.tier);
   const rebuildFlag = state.lastGrade === "D";
+  const releaseFlag = state.currentClub && state.currentClub.incentive && state.currentClub.incentive.key==="releaseClause"
+    && state.rating >= state.currentClub.incentive.threshold;
 
   const pickedNames = new Set();
   const ALL_CLUB_ENTRIES = Object.entries(CLUB_POOL).flatMap(([t,arr])=>arr.map(tuple=>({tier:t, tuple})));
@@ -441,42 +483,69 @@ function genOffers(){
     const {tier, tuple} = pickAvailableClub(Math.random()<0.5?"Elite":"Big");
     const [name,manager,style] = tuple;
     pickedNames.add(name);
+    const [gtLoB,gtHiB] = GAME_TIME_RANGE.BREAKOUT;
     forced.push({club:name, manager, tier, style, role:"BREAKOUT", roleMeta:ROLE_META.BREAKOUT,
       teamQuality: tier==="Elite"?rnd(85,98):rnd(70,86), trophyChance: tier==="Elite"?rnd(55,80):rnd(30,50),
-      hype: tier==="Elite"?rnd(80,100):rnd(55,75), flavor:"They watched your breakout season. They're buying you to start, not to sit.",
-      revealed:false});
+      hype: tier==="Elite"?rnd(80,100):rnd(55,75), gameTime: rnd(gtLoB,gtHiB),
+      flavor:"They watched your breakout season. They're buying you to start, not to sit.",
+      revealed:false, incentive:null});
   } else if(rebuildFlag){
     const {tier, tuple} = pickAvailableClub(Math.random()<0.5?"Mid":"Rising");
     const [name,manager,style] = tuple;
     pickedNames.add(name);
+    const [gtLoR,gtHiR] = GAME_TIME_RANGE.REBUILD;
     forced.push({club:name, manager, tier, style, role:"REBUILD", roleMeta:ROLE_META.REBUILD,
       teamQuality: tier==="Mid"?rnd(55,72):rnd(38,58), trophyChance: tier==="Mid"?rnd(10,25):rnd(2,12),
-      hype: tier==="Mid"?rnd(30,50):rnd(15,35), flavor:"A guaranteed starting shirt while you rebuild your name.",
-      revealed:false});
+      hype: tier==="Mid"?rnd(30,50):rnd(15,35), gameTime: rnd(gtLoR,gtHiR),
+      flavor:"A guaranteed starting shirt while you rebuild your name.",
+      revealed:false, incentive:null});
+  } else if(releaseFlag){
+    const {tier, tuple} = pickAvailableClub(state.currentClub.tier==="Rising" ? "Mid" : "Big");
+    const [name,manager,style] = tuple;
+    pickedNames.add(name);
+    const [gtLoRel,gtHiRel] = GAME_TIME_RANGE.STARTER;
+    forced.push({club:name, manager, tier, style, role:"STARTER", roleMeta:ROLE_META.STARTER,
+      teamQuality: tier==="Big"?rnd(70,86):rnd(55,72), trophyChance: tier==="Big"?rnd(30,50):rnd(10,25),
+      hype: tier==="Big"?rnd(55,75):rnd(30,50), gameTime: rnd(gtLoRel,gtHiRel),
+      flavor:"Your release clause has been triggered. This is guaranteed first-team football.",
+      revealed:false, incentive:null});
   }
   slots -= forced.length;
 
+  const homeChanceByPhase = {breakthrough:0.65, rise:0.25, prime:0.08, twilight:0.05};
   for(let i=0;i<slots;i++){
-    const {tier, tuple} = pickAvailableClub(pickTier(phase));
-    const [name,manager,style] = tuple;
-    const role = roleForOffer(tier, state.rating);
-    const {teamQuality, trophyChance, hype} = tierStats(tier);
+    const rolledTier = pickTier(phase);
+    const homeAvailable = (homeClubs||[]).filter(([n])=>!usedClubs.has(n) && !pickedNames.has(n));
+    const useHome = homeAvailable.length>0 && Math.random() < homeChanceByPhase[phase];
+    let tier, name, manager, style;
+    if(useHome){
+      [name, manager, tier, style] = pick(homeAvailable);
+    } else {
+      const picked = pickAvailableClub(rolledTier);
+      tier = picked.tier; [name, manager, style] = picked.tuple;
+    }
+    let role = roleForOffer(tier, state.rating);
+    const {teamQuality, trophyChance, hype, gameTime} = tierStats(tier, role);
+    const incentive = maybeAssignIncentive(tier);
+    if(incentive && incentive.key==="noRotation") role = "STARTER";
     pickedNames.add(name);
-    forced.push({club:name, manager, tier, style, role, roleMeta:ROLE_META[role], teamQuality, trophyChance, hype, flavor:pick(FLAVORS[tier]), revealed:false});
+    forced.push({club:name, manager, tier, style, role, roleMeta:ROLE_META[role], teamQuality, trophyChance, hype, gameTime,
+      flavor:pick(FLAVORS[tier]), revealed:false, incentive, isHome:useHome});
   }
 
   offers.push(...forced);
 
   if(state.currentClub){
     const cc = state.currentClub;
-    const role = roleForOffer(cc.tier, state.rating);
+    let role = cc.incentive && cc.incentive.key==="noRotation" ? "STARTER" : roleForOffer(cc.tier, state.rating);
+    const [gtLoS,gtHiS] = GAME_TIME_RANGE[role];
     const yearsAtClub = state.consecutiveYearsAtClub || 1;
     const stayFlavor = yearsAtClub>=3
       ? "You've learned everything this level can teach you. Growth here is drying up — time to test yourself elsewhere?"
       : "You know this dressing room. No surprises... probably.";
     offers.push({club:cc.name, manager:cc.manager, tier:cc.tier, style:cc.style, role, roleMeta:ROLE_META[role],
-      teamQuality:cc.teamQuality, trophyChance:cc.trophyChance, hype:cc.hype, yearsAtClub,
-      flavor:stayFlavor, revealed:true, isStay:true});
+      teamQuality:cc.teamQuality, trophyChance:cc.trophyChance, hype:cc.hype, gameTime:rnd(gtLoS,gtHiS), yearsAtClub,
+      incentive:cc.incentive||null, flavor:stayFlavor, revealed:true, isStay:true});
   }
   return offers;
 }
@@ -642,9 +711,11 @@ function renderDraft(s){
         <span class="role-tag ${o.role}">${o.roleMeta.label}</span>
         <span class="style-tag">${STYLE_ICON[o.style]}</span>
         ${o.isStay? `<span class="style-tag">YEAR ${o.yearsAtClub} HERE</span>`:''}
+        ${o.incentive? (o.revealed? `<span class="incentive-tag">🎁 ${o.incentive.label}</span>` : `<span class="incentive-tag hidden">🔒 HIDDEN INCENTIVE</span>`) : ''}
       </div>
       <div class="manager">Manager: ${o.manager}</div>
       <div class="flavor">"${o.flavor}"</div>
+      ${(o.incentive && o.revealed)? `<div class="incentive-desc">${o.incentive.desc}</div>` : ''}
     `;
     topRow.appendChild(body);
     el.appendChild(topRow);
@@ -652,7 +723,7 @@ function renderDraft(s){
     const meterRow=document.createElement('div'); meterRow.className='meter-row';
     pipMeterRow(meterRow,'TEAM', o.teamQuality, 'DEF', o.revealed);
     pipMeterRow(meterRow,'TROPHY%', o.trophyChance, 'FIN', o.revealed);
-    pipMeterRow(meterRow,'HYPE', o.hype, 'HYPE', o.revealed);
+    pipMeterRow(meterRow,'GAME TIME', o.gameTime, 'HYPE', o.revealed);
     el.appendChild(meterRow);
 
     if(!o.revealed){
@@ -717,6 +788,7 @@ function resolveOffer(offer){
     btn.onclick=()=>{
       let effOffer = {...offer};
       if(ev.effect.roleOverride){ effOffer.role = ev.effect.roleOverride; effOffer.roleMeta = ROLE_META[ev.effect.roleOverride]; }
+      if(ev.effect.teamQualityHit){ effOffer.teamQuality = Math.max(15, effOffer.teamQuality - ev.effect.teamQualityHit); }
       startDiceRoll(effOffer, ev.effect);
     };
     overlay.appendChild(btn);
@@ -750,18 +822,21 @@ function applySeason(offer, form, fitness, eventEffect){
   if(offer.style==="possession") styleMult.CRE = 1.2;
   else if(offer.style==="direct") styleMult.FIN = 1.2;
   else styleMult.DEF = 1.1;
+  if(offer.incentive && offer.incentive.key==="teamBuilt") styleMult[offer.incentive.statBoost] += 0.3;
+  const isCaptainNow = state.currentClub && state.currentClub.isCaptain && offer.club===state.currentClub.name;
 
   const gainFIN = Math.round(pos.FIN * offer.teamQuality * mult * 0.14 * styleMult.FIN) + (bonusStat==="FIN"?rnd(2,5):0);
   const gainCRE = Math.round(pos.CRE * offer.teamQuality * mult * 0.14 * styleMult.CRE) + (bonusStat==="CRE"?rnd(2,5):0);
   const gainDEF = Math.round(pos.DEF * offer.teamQuality * mult * 0.14 * styleMult.DEF) + (bonusStat==="DEF"?rnd(2,5):0);
   let gainHYPE = Math.round(offer.hype * mult * 0.5) + (bonusStat==="HYPE"?rnd(2,5):0);
   if(eventEffect.hypeBonus) gainHYPE += eventEffect.hypeBonus;
+  if(isCaptainNow) gainHYPE += 5;
 
   state.stats.FIN += gainFIN; state.stats.CRE += gainCRE; state.stats.DEF += gainDEF; state.stats.HYPE += gainHYPE;
 
   /* season match stats */
   const rates = STAT_RATES[state.position.code];
-  const appearances = clamp(Math.round(38 * roleMeta.minutesMult * (0.45 + fitness/11)), 3, 38);
+  const appearances = clamp(Math.round(38 * (offer.gameTime/100) * (0.45 + fitness/11)), 3, 38);
   const formFactor = 0.55 + perf*0.9; // scales with how well the dice roll went
   const teamFactor = offer.teamQuality/70;
   const goals = Math.max(0, Math.round(appearances * rates.goal * formFactor * teamFactor * styleMult.FIN));
@@ -774,9 +849,13 @@ function applySeason(offer, form, fitness, eventEffect){
   state.careerStats.apps += appearances; state.careerStats.goals += goals; state.careerStats.assists += assists;
   state.careerStats.yellows += yellows; state.careerStats.reds += reds; state.careerStats.cleanSheets += cleanSheets;
 
+  const continentalBoost = offer.incentive && offer.incentive.key==="continental";
   let trophyWon = null;
   if(rnd(1,100) <= offer.trophyChance){
-    trophyWon = pick(["League Title","Champions League","Domestic Cup"]);
+    const trophyPool = continentalBoost
+      ? ["League Title","Champions League","Champions League","Domestic Cup"]
+      : ["League Title","Champions League","Domestic Cup"];
+    trophyWon = pick(trophyPool);
     state.trophies.push(trophyWon);
     state.stats.HYPE += 12;
     if(trophyWon==="League Title") state.careerStats.leagueTitles++;
@@ -819,8 +898,26 @@ function applySeason(offer, form, fitness, eventEffect){
   state.peakRating = Math.max(state.peakRating, state.rating);
   state.lastGrade = grade;
 
+  /* Captain within 3 years: tracked per club, needs 3 straight B+ seasons */
+  const priorClub = state.currentClub;
+  const incentive = offer.incentive || null;
+  let captainProgress = 0, isCaptain = false;
+  if(incentive && incentive.key==="captain3"){
+    if(stayedPut && priorClub){
+      captainProgress = ["S","A","B"].includes(grade) ? (priorClub.captainProgress||0)+1 : 0;
+      isCaptain = priorClub.isCaptain || captainProgress>=3;
+    } else {
+      captainProgress = ["S","A","B"].includes(grade) ? 1 : 0;
+    }
+    if(isCaptain && !(priorClub && priorClub.isCaptain)){
+      state.rating = clamp(state.rating + 8, 0, 100); // one-time bump the moment the armband arrives
+      state.peakRating = Math.max(state.peakRating, state.rating);
+    }
+  }
+
   state.currentClub = {name:offer.club, manager:offer.manager, tier:offer.tier, style:offer.style,
-    teamQuality:offer.teamQuality, trophyChance:offer.trophyChance, hype:offer.hype};
+    teamQuality:offer.teamQuality, trophyChance:offer.trophyChance, hype:offer.hype,
+    incentive, captainProgress, isCaptain};
 
   /* --- RIVAL: a fully parallel career, simulated silently, same categories --- */
   const phase = phaseForRound(state.round);
@@ -881,7 +978,14 @@ function applySeason(offer, form, fitness, eventEffect){
     text:`<b>${offer.club}</b> (Year ${state.round+1}, age ${START_AGE+state.round}) — ${roleMeta.label}. ${note}${trophyWon? ` Lifted the ${trophyWon}!`:''}`});
   state.timeline.push({year:state.round+1, age:START_AGE+state.round, grade, trophyWon:!!trophyWon, intlNote});
 
-  state.pendingSummary = {grade, ratingDelta, note, trophyWon, club:offer.club, seasonStats, motms, totyWon, intlNote};
+  let captainNote = null;
+  if(incentive && incentive.key==="captain3"){
+    if(isCaptain && !(priorClub && priorClub.isCaptain)) captainNote = "You've been made captain! A lasting Rating and Hype boost kicks in from here.";
+    else if(!isCaptain && captainProgress>0) captainNote = `Captaincy clause: ${captainProgress}/3 qualifying seasons.`;
+    else if(!isCaptain && captainProgress===0 && stayedPut) captainNote = "Captaincy clause reset — that grade wasn't good enough to count.";
+  }
+
+  state.pendingSummary = {grade, ratingDelta, note, trophyWon, club:offer.club, seasonStats, motms, totyWon, intlNote, captainNote};
   state.round++;
   state.screen = "summary";
   render();
@@ -914,6 +1018,7 @@ function renderSummary(s){
   const extras = [];
   if(p.motms>0) extras.push(`${p.motms} Man of the Match award${p.motms>1?'s':''}`);
   if(p.totyWon) extras.push("Named to the Team of the Year");
+  if(p.captainNote) extras.push(p.captainNote);
   if(extras.length){
     const extraNote=document.createElement('div'); extraNote.className='scout-note';
     extraNote.textContent = extras.join(' · ');
