@@ -468,12 +468,15 @@ function pickTier(phase){
   return weightedPick(w.map(([t,wt])=>({tier:t,weight:wt}))).tier;
 }
 
-function roleForOffer(tier, rating){
+const GRADE_STARTER_BONUS = {S:25, A:12, B:0, C:-8, D:-18};
+function roleForOffer(tier, rating, bonus){
+  bonus = bonus || 0;
   let starterChance;
   if(tier==="Elite") starterChance = rating>=80?70:rating>=60?35:10;
   else if(tier==="Big") starterChance = rating>=60?75:rating>=40?45:20;
   else if(tier==="Mid") starterChance = rating>=30?85:60;
   else starterChance = 90;
+  starterChance = clamp(starterChance + bonus, 5, 97);
   return Math.random()*100 < starterChance ? "STARTER" : "ROTATION";
 }
 
@@ -576,7 +579,7 @@ function genOffers(){
       const picked = pickAvailableClub(rolledTier);
       tier = picked.tier; [name, manager, style] = picked.tuple;
     }
-    let role = roleForOffer(tier, state.rating);
+    let role = roleForOffer(tier, state.rating, GRADE_STARTER_BONUS[state.lastGrade] || 0);
     const {teamQuality, trophyChance, hype, gameTime} = tierStats(tier, role);
     const incentive = maybeAssignIncentive(tier);
     if(incentive && incentive.key==="noRotation") role = "STARTER";
@@ -589,7 +592,10 @@ function genOffers(){
 
   if(state.currentClub){
     const cc = state.currentClub;
-    let role = cc.incentive && cc.incentive.key==="noRotation" ? "STARTER" : roleForOffer(cc.tier, state.rating);
+    const rewardedForm = ["S","A"].includes(state.lastGrade);
+    let role = (cc.incentive && cc.incentive.key==="noRotation") || rewardedForm
+      ? "STARTER"
+      : roleForOffer(cc.tier, state.rating, GRADE_STARTER_BONUS[state.lastGrade] || 0);
     const [gtLoS,gtHiS] = GAME_TIME_RANGE[role];
     const yearsAtClub = state.consecutiveYearsAtClub || 1;
     const stayFlavor = yearsAtClub>=3
@@ -974,7 +980,10 @@ function applySeason(offer, form, fitness, eventEffect, boostDieValue){
 
   /* season match stats */
   const rates = STAT_RATES[state.position.code];
-  const appearances = clamp(Math.round(38 * (offer.gameTime/100) * (0.45 + fitness/11)), 3, 38);
+  /* appearances track the CONFIRMED role (gameTime) and any explicit injury (minutesCut) —
+     the fitness die still nudges appearances a little, but a no-rotation-risk, no-injury season
+     should reliably post a high games-played count instead of swinging on the dice roll. */
+  const appearances = clamp(Math.round(38 * (offer.gameTime/100) * minutesCut * (0.85 + fitness/40)), 3, 38);
   const formFactor = 0.55 + perf*0.9; // scales with how well the dice roll went
   const teamFactor = offer.teamQuality/70;
   const setpieceMult = 1 + traitLevel("setpiece")*0.12;
