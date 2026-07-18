@@ -400,6 +400,24 @@ function maybeAssignIncentive(tier){
   return incentive;
 }
 
+/* Roguelike trait pool — offered at years 3/6/9/12, 3 random of 12, duplicates stack a level higher */
+const TRAIT_POOL = [
+  {key:"penalty", label:"PENALTY SPECIALIST", desc:lvl=>`+${lvl*10}% to your finishing output every season.`},
+  {key:"vision", label:"PLAYMAKER'S VISION", desc:lvl=>`+${lvl*10}% to your creative output every season.`},
+  {key:"wall", label:"BRICK WALL", desc:lvl=>`+${lvl*10}% to your defensive output every season.`},
+  {key:"media", label:"MEDIA DARLING", desc:lvl=>`+${lvl*10}% Hype every season, and better Golden Balloon odds.`},
+  {key:"leader", label:"LEADER", desc:lvl=>`Rating grows ${lvl*12}% faster every season.`},
+  {key:"biggame", label:"BIG GAME PLAYER", desc:lvl=>`+${lvl*6} Trophy% at every club, plus a stronger tournament carry.`},
+  {key:"setpiece", label:"SET PIECE THREAT", desc:lvl=>`+${lvl*12}% to your goals and assists totals.`},
+  {key:"fanfave", label:"FAN FAVOURITE", desc:lvl=>`+${(lvl*10)}% chance of Team of the Year selection.`},
+  {key:"clutch", label:"CLUTCH PERFORMER", desc:lvl=>`+${(lvl*5)}% Man of the Match rate.`},
+  {key:"bounceback", label:"BOUNCE-BACK", desc:lvl=>`A poor (D-grade) season costs ${Math.max(0,5-lvl*2)} Rating instead of 5.`},
+  {key:"ironman", label:"IRON MAN", desc:lvl=>`Plays ${lvl*2} years "younger" for Fitness-roll purposes.`},
+  {key:"lucky", label:"LUCKY CHARM", desc:lvl=>`Adds a Boost Die to every season roll, worth up to +${Math.round(lvl*15)}% form.`},
+];
+function traitLevel(key){ return (state.traits && state.traits[key]) || 0; }
+const TRAIT_YEARS = [3,6,9,12];
+
 const TOTAL_ROUNDS = 15;
 const START_AGE = 18;
 
@@ -416,7 +434,7 @@ function resetState(){
       leagueTitles:0, domesticCups:0, continentalCups:0, worldCups:0, continentalTitles:0, motms:0, totys:0, goldenBalloons:0},
     rivalCareerStats:{goals:0, assists:0, cleanSheets:0, leagueTitles:0, domesticCups:0, continentalCups:0,
       worldCups:0, continentalTitles:0, motms:0, totys:0, goldenBalloons:0},
-    rival:null, rivalRating:15, timeline:[],
+    rival:null, rivalRating:15, timeline:[], traits:{},
   };
 }
 const PLAYER_COLORS = [
@@ -617,7 +635,7 @@ function render(){
   const app = document.getElementById("app"); app.innerHTML = "";
   const top = document.createElement("div"); top.className="topbar";
   top.innerHTML = `<span class="px" style="font-size:12px;">&#9724; ROAD TO GOLD</span>`;
-  if(state.screen==="draft" || state.screen==="summary"){
+  if(state.screen==="draft" || state.screen==="summary" || state.screen==="traitDraft"){
     const rt = document.createElement('div'); rt.className='rep-tag';
     rt.innerHTML = `<span>RATING ${state.rating} <span style="color:var(--gold);">· ${ratingTagline(state.rating)}</span></span><span class="bar"><span class="f" style="width:${state.rating}%"></span></span>`;
     top.appendChild(rt);
@@ -639,6 +657,7 @@ function render(){
   else if(state.screen==="rivalReveal") renderRivalReveal(screen);
   else if(state.screen==="draft") renderDraft(screen);
   else if(state.screen==="summary") renderSummary(screen);
+  else if(state.screen==="traitDraft") renderTraitDraft(screen);
   else if(state.screen==="results") renderResults(screen);
   else if(state.screen==="share") renderShare(screen);
 }
@@ -831,23 +850,44 @@ function resolveOffer(offer){
     title.textContent = `ROLLING YOUR SEASON AT ${effectiveOffer.club.toUpperCase()}...`;
     overlay.appendChild(title);
     const row=document.createElement('div'); row.className='dice-row'; overlay.appendChild(row);
+
+    const age = START_AGE + state.round;
+    const ironLvl = traitLevel("ironman");
+    const effectiveAge = clamp(age - ironLvl*2, 18, 99);
+    const fitMode = effectiveAge<=23 ? "advantage" : effectiveAge>=30 ? "disadvantage" : "normal";
+    const luckyLvl = traitLevel("lucky");
+
     const w1=document.createElement('div'); w1.className='die-wrap';
     const w2=document.createElement('div'); w2.className='die-wrap';
     row.appendChild(w1); row.appendChild(w2);
+    let w3=null;
+    if(luckyLvl>0){ w3=document.createElement('div'); w3.className='die-wrap'; row.appendChild(w3); }
+
     let d1=buildDie(w1, rnd(1,6)); let d2=buildDie(w2, rnd(1,6));
+    let d3 = w3 ? buildDie(w3, rnd(1,6)) : null;
     const l1=document.createElement('div'); l1.className='die-label'; l1.textContent='FORM'; w1.appendChild(l1);
-    const l2=document.createElement('div'); l2.className='die-label'; l2.textContent='FITNESS'; w2.appendChild(l2);
+    const l2=document.createElement('div'); l2.className='die-label';
+    l2.textContent = fitMode==="normal" ? 'FITNESS' : `FITNESS (${fitMode.toUpperCase()}, AGE ${age})`;
+    w2.appendChild(l2);
+    let l3=null;
+    if(w3){ l3=document.createElement('div'); l3.className='die-label'; l3.textContent='BOOST DIE'; w3.appendChild(l3); }
+
     let ticks=0;
     const iv=setInterval(()=>{
       w1.removeChild(d1); d1=buildDie(w1, rnd(1,6)); w1.insertBefore(d1,l1);
       w2.removeChild(d2); d2=buildDie(w2, rnd(1,6)); w2.insertBefore(d2,l2);
+      if(w3){ w3.removeChild(d3); d3=buildDie(w3, rnd(1,6)); w3.insertBefore(d3,l3); }
       ticks++;
       if(ticks>10){
         clearInterval(iv);
-        const form=rnd(1,6), fitness=rnd(1,6);
+        const form=rnd(1,6);
+        const fitRolls = fitMode==="normal" ? [rnd(1,6)] : [rnd(1,6), rnd(1,6)];
+        const fitness = fitMode==="advantage" ? Math.max(...fitRolls) : fitMode==="disadvantage" ? Math.min(...fitRolls) : fitRolls[0];
+        const boostValue = w3 ? rnd(1,6) : 0;
         w1.removeChild(d1); d1=buildDie(w1, form); d1.classList.remove('rolling'); w1.insertBefore(d1,l1);
         w2.removeChild(d2); d2=buildDie(w2, fitness); d2.classList.remove('rolling'); w2.insertBefore(d2,l2);
-        setTimeout(()=>{ document.getElementById("app").removeChild(overlay); applySeason(effectiveOffer, form, fitness, eventEffect); }, 700);
+        if(w3){ w3.removeChild(d3); d3=buildDie(w3, boostValue); d3.classList.remove('rolling'); w3.insertBefore(d3,l3); }
+        setTimeout(()=>{ document.getElementById("app").removeChild(overlay); applySeason(effectiveOffer, form, fitness, eventEffect, boostValue); }, 700);
       }
     }, 80);
   }
@@ -881,13 +921,29 @@ const GRADE_NOTE = {
   D:["A poor campaign. Your rating is taking a real hit.","Struggled for form and for minutes."],
 };
 
-function applySeason(offer, form, fitness, eventEffect){
+function nationTraitKey(country){
+  if(country.stat==="HYPE") return "mediaMachine"; // England: the media machine nation
+  if(country.pedigree<=35) return "chipOnShoulder"; // small-nation underdogs: wider variance, boom or bust
+  if(country.pedigree>=80){
+    if(country.stat==="CRE") return "flairFactory";
+    if(country.stat==="DEF") return "structuredAcademy";
+    if(country.stat==="FIN") return "clinicalAcademy";
+  }
+  return null; // everyone else keeps the simple flat bonus
+}
+
+function applySeason(offer, form, fitness, eventEffect, boostDieValue){
   eventEffect = eventEffect || {};
+  boostDieValue = boostDieValue || 0;
   const minutesCut = eventEffect.minutesCut || 1;
   const roleMeta = offer.roleMeta;
-  const [lo,hi] = roleMeta.variance;
+  let [lo,hi] = roleMeta.variance;
+  const nationTrait = nationTraitKey(state.country);
+  if(nationTrait==="chipOnShoulder"){ lo = Math.max(0.15, lo-0.15); hi = hi+0.15; } // boom or bust
   const perf = (form+fitness-2)/10; // 0..1
-  const mult = (lo + perf*(hi-lo)) * minutesCut;
+  let mult = (lo + perf*(hi-lo)) * minutesCut;
+  const luckyLvl = traitLevel("lucky");
+  if(luckyLvl>0 && boostDieValue>0) mult += (boostDieValue/6) * 0.15 * luckyLvl;
 
   const pos = state.position.w;
   const bonusStat = state.country.stat;
@@ -896,14 +952,23 @@ function applySeason(offer, form, fitness, eventEffect){
   else if(offer.style==="direct") styleMult.FIN = 1.2;
   else styleMult.DEF = 1.1;
   if(offer.incentive && offer.incentive.key==="teamBuilt") styleMult[offer.incentive.statBoost] += 0.3;
+  if(nationTrait==="flairFactory") styleMult.CRE += 0.15;
+  if(nationTrait==="structuredAcademy") styleMult.DEF += 0.15;
+  if(nationTrait==="clinicalAcademy") styleMult.FIN += 0.15;
+  styleMult.FIN += traitLevel("penalty")*0.1;
+  styleMult.CRE += traitLevel("vision")*0.1;
+  styleMult.DEF += traitLevel("wall")*0.1;
   const isCaptainNow = state.currentClub && state.currentClub.isCaptain && offer.club===state.currentClub.name;
 
-  const gainFIN = Math.round(pos.FIN * offer.teamQuality * mult * 0.14 * styleMult.FIN) + (bonusStat==="FIN"?rnd(2,5):0);
-  const gainCRE = Math.round(pos.CRE * offer.teamQuality * mult * 0.14 * styleMult.CRE) + (bonusStat==="CRE"?rnd(2,5):0);
-  const gainDEF = Math.round(pos.DEF * offer.teamQuality * mult * 0.14 * styleMult.DEF) + (bonusStat==="DEF"?rnd(2,5):0);
-  let gainHYPE = Math.round(offer.hype * mult * 0.5) + (bonusStat==="HYPE"?rnd(2,5):0);
+  const gainFIN = Math.round(pos.FIN * offer.teamQuality * mult * 0.14 * styleMult.FIN) + (nationTrait? 0 : (bonusStat==="FIN"?rnd(2,5):0));
+  const gainCRE = Math.round(pos.CRE * offer.teamQuality * mult * 0.14 * styleMult.CRE) + (nationTrait? 0 : (bonusStat==="CRE"?rnd(2,5):0));
+  const gainDEF = Math.round(pos.DEF * offer.teamQuality * mult * 0.14 * styleMult.DEF) + (nationTrait? 0 : (bonusStat==="DEF"?rnd(2,5):0));
+  let gainHYPE = Math.round(offer.hype * mult * 0.5) + (nationTrait? 0 : (bonusStat==="HYPE"?rnd(2,5):0));
   if(eventEffect.hypeBonus) gainHYPE += eventEffect.hypeBonus;
   if(isCaptainNow) gainHYPE += 5;
+  if(nationTrait==="mediaMachine") gainHYPE = Math.round(gainHYPE*1.25);
+  const mediaLvl = traitLevel("media");
+  if(mediaLvl>0) gainHYPE = Math.round(gainHYPE*(1+0.1*mediaLvl));
 
   state.stats.FIN += gainFIN; state.stats.CRE += gainCRE; state.stats.DEF += gainDEF; state.stats.HYPE += gainHYPE;
 
@@ -912,8 +977,9 @@ function applySeason(offer, form, fitness, eventEffect){
   const appearances = clamp(Math.round(38 * (offer.gameTime/100) * (0.45 + fitness/11)), 3, 38);
   const formFactor = 0.55 + perf*0.9; // scales with how well the dice roll went
   const teamFactor = offer.teamQuality/70;
-  const goals = Math.max(0, Math.round(appearances * rates.goal * formFactor * teamFactor * styleMult.FIN));
-  const assists = Math.max(0, Math.round(appearances * rates.assist * formFactor * teamFactor * styleMult.CRE));
+  const setpieceMult = 1 + traitLevel("setpiece")*0.12;
+  const goals = Math.max(0, Math.round(appearances * rates.goal * formFactor * teamFactor * styleMult.FIN * setpieceMult));
+  const assists = Math.max(0, Math.round(appearances * rates.assist * formFactor * teamFactor * styleMult.CRE * setpieceMult));
   const yellows = clamp(Math.round(appearances * rates.yellow * (1.3 - perf*0.5) * (Math.random()*0.4+0.8)), 0, appearances);
   const reds = Math.random() < (0.05 + rates.yellow*0.08) * (1.2-perf) ? 1 : 0;
   const cleanSheets = Math.max(0, Math.round(appearances * rates.clean * teamFactor * (0.6+perf*0.6)));
@@ -923,8 +989,9 @@ function applySeason(offer, form, fitness, eventEffect){
   state.careerStats.yellows += yellows; state.careerStats.reds += reds; state.careerStats.cleanSheets += cleanSheets;
 
   const continentalBoost = offer.incentive && offer.incentive.key==="continental";
+  const effectiveTrophyChance = clamp(offer.trophyChance + traitLevel("biggame")*6, 0, 95);
   let trophyWon = null;
-  if(rnd(1,100) <= offer.trophyChance){
+  if(rnd(1,100) <= effectiveTrophyChance){
     const trophyPool = continentalBoost
       ? ["League Title","Continental Cup","Continental Cup","Domestic Cup"]
       : ["League Title","Continental Cup","Domestic Cup"];
@@ -944,8 +1011,8 @@ function applySeason(offer, form, fitness, eventEffect){
   /* Man of the Match & Team of the Year, driven by grade */
   const MOTM_RATE = {S:0.25, A:0.15, B:0.07, C:0.02, D:0};
   const TOTY_CHANCE = {S:0.7, A:0.35, B:0.05, C:0, D:0};
-  const motms = Math.round(appearances * MOTM_RATE[grade]);
-  const totyWon = Math.random() < TOTY_CHANCE[grade];
+  const motms = Math.round(appearances * clamp(MOTM_RATE[grade] + traitLevel("clutch")*0.05, 0, 0.9));
+  const totyWon = Math.random() < clamp(TOTY_CHANCE[grade] + traitLevel("fanfave")*0.10, 0, 0.95);
   state.careerStats.motms += motms;
   if(totyWon) state.careerStats.totys++;
 
@@ -960,8 +1027,9 @@ function applySeason(offer, form, fitness, eventEffect){
   const ceiling = TIER_CEILING[offer.tier];
   const diminish = STAY_DIMINISH[clamp(state.consecutiveYearsAtClub-1, 0, STAY_DIMINISH.length-1)];
   const headroom = Math.max(0, ceiling - state.rating);
-  let ratingDelta = Math.round(headroom * 0.35 * diminish * GRADE_MULT[grade]);
-  if(grade==="D") ratingDelta -= 5; // a poor season actively costs you, not just "no growth"
+  const leaderMult = 1 + traitLevel("leader")*0.12;
+  let ratingDelta = Math.round(headroom * 0.35 * leaderMult * diminish * GRADE_MULT[grade]);
+  if(grade==="D") ratingDelta -= Math.max(0, 5 - traitLevel("bounceback")*2); // a poor season actively costs you, not just "no growth"
   if(trophyWon) ratingDelta += 3;
   if(roleMeta.ratingBonus) ratingDelta += roleMeta.ratingBonus;
   if(eventEffect.ratingBonus) ratingDelta += eventEffect.ratingBonus;
@@ -1023,7 +1091,7 @@ function applySeason(offer, form, fitness, eventEffect){
      NOTE: seasonScore sums the raw stat gains directly — gainFIN/CRE/DEF already carry the position
      weight baked in from the calc above, so we must NOT multiply by pos.FIN/CRE/DEF again here (that
      old double-count was quietly making this vote nearly unwinnable regardless of how well you played). */
-  const seasonScore = gainFIN*0.6 + gainCRE*0.6 + gainDEF*0.6 + gainHYPE*0.5 + (trophyWon?18:0);
+  const seasonScore = (gainFIN*0.6 + gainCRE*0.6 + gainDEF*0.6 + gainHYPE*0.5 + (trophyWon?18:0)) * (1 + traitLevel("media")*0.05);
   let rivalScore = rival.talent * rivalPhaseMult * rivalPerf * 0.55;
   if(rivalTrophyWon) rivalScore += 18;
   const fieldScore = Math.max(seasonScore, rivalScore) * (0.55 + Math.random()*0.7);
@@ -1037,7 +1105,7 @@ function applySeason(offer, form, fitness, eventEffect){
   const thisRound = state.round;
   if(WORLD_CUP_ROUNDS.includes(thisRound) || CONTINENTAL_ROUNDS.includes(thisRound)){
     const isWorldCup = WORLD_CUP_ROUNDS.includes(thisRound);
-    const playerResult = simulateTournament(state.country.pedigree, state.rating);
+    const playerResult = simulateTournament(state.country.pedigree, state.rating + traitLevel("biggame")*8);
     const rivalResult = simulateTournament(rival.country.pedigree, state.rivalRating);
     if(isWorldCup){
       if(playerResult.won) state.careerStats.worldCups++;
@@ -1112,7 +1180,11 @@ function renderSummary(s){
   }
 
   const btn=document.createElement('button'); btn.className='btn'; btn.style.marginTop='6px';
-  if(state.round >= TOTAL_ROUNDS){
+  const dueTraitDraft = TRAIT_YEARS.includes(state.round);
+  if(dueTraitDraft){
+    btn.textContent='CHOOSE A TRAIT';
+    btn.onclick = ()=>{ state.traitOptions = sampleTraitOptions(); state.screen="traitDraft"; render(); };
+  } else if(state.round >= TOTAL_ROUNDS){
     btn.textContent='SEE CAREER RESULT';
     btn.onclick = ()=> finalizeCareer();
   } else {
@@ -1120,6 +1192,34 @@ function renderSummary(s){
     btn.onclick = ()=>{ state.currentOffers = genOffers(); state.screen="draft"; render(); };
   }
   s.appendChild(btn);
+}
+
+function sampleTraitOptions(){
+  const shuffled = [...TRAIT_POOL].sort(()=>Math.random()-0.5);
+  return shuffled.slice(0,3).map(t=>t.key);
+}
+
+function renderTraitDraft(s){
+  s.innerHTML = `<div class="eyebrow px">YEAR ${state.round} MILESTONE</div>`;
+  const h2=document.createElement('h2'); h2.className='px'; h2.textContent='CHOOSE A TRAIT'; s.appendChild(h2);
+  const lead=document.createElement('p'); lead.className='lead'; lead.textContent="Permanent, stacks if you pick it again later.";
+  s.appendChild(lead);
+
+  state.traitOptions.forEach(key=>{
+    const trait = TRAIT_POOL.find(t=>t.key===key);
+    const curLevel = traitLevel(key);
+    const el=document.createElement('div'); el.className='pick'; el.style.marginBottom='10px';
+    el.innerHTML = `
+      <div class="px name">${trait.label} ${curLevel>0?`<span style="color:var(--gold);">LV${curLevel} → LV${curLevel+1}</span>`:'<span style="color:var(--green);">NEW</span>'}</div>
+      <div class="posnote">${trait.desc(curLevel+1)}</div>
+    `;
+    el.onclick = ()=>{
+      state.traits[key] = curLevel+1;
+      if(state.round >= TOTAL_ROUNDS) finalizeCareer();
+      else { state.currentOffers = genOffers(); state.screen="draft"; render(); }
+    };
+    s.appendChild(el);
+  });
 }
 
 const LEGACY_CATEGORIES = [
@@ -1214,6 +1314,20 @@ function renderResults(s){
     csGrid.appendChild(cell);
   });
   s.appendChild(csGrid);
+
+  const heldTraits = Object.keys(state.traits||{}).filter(k=>state.traits[k]>0);
+  if(heldTraits.length){
+    const h3tr=document.createElement('h3'); h3tr.className='px'; h3tr.textContent='TRAITS COLLECTED'; s.appendChild(h3tr);
+    const traitPanel=document.createElement('div'); traitPanel.className='pixel-panel';
+    heldTraits.forEach(key=>{
+      const trait = TRAIT_POOL.find(t=>t.key===key);
+      const lvl = state.traits[key];
+      const row=document.createElement('div'); row.style.marginBottom='8px';
+      row.innerHTML = `<span class="px" style="font-size:10px; color:var(--gold);">${trait.label} LV${lvl}</span><div style="font-size:14px; color:var(--dim); margin-top:2px;">${trait.desc(lvl)}</div>`;
+      traitPanel.appendChild(row);
+    });
+    s.appendChild(traitPanel);
+  }
 
   const h3b=document.createElement('h3'); h3b.className='px'; h3b.textContent='CAREER LOG'; s.appendChild(h3b);
   const logEl=document.createElement('div'); s.appendChild(logEl);
