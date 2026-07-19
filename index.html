@@ -784,7 +784,7 @@ function renderPosition(s){
 function generateRival(){
   const roster = pick(RIVAL_ROSTER);
   const country = COUNTRIES.find(c=>c.name===roster.country) || pick(COUNTRIES);
-  const position = pick(POSITIONS);
+  const position = state.position;
   const talent = rnd(62,92);
   return {name: roster.name, country, position, talent};
 }
