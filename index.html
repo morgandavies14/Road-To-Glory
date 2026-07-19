@@ -56,6 +56,23 @@
   .pick .px.name{font-size:10px; margin-top:6px;}
   .pick .tag{font-size:9px; color:var(--green); margin-top:4px; font-family:'Press Start 2P',monospace;}
   .pick .posnote{font-size:16px; color:var(--dim); margin-top:4px; line-height:1.3;}
+  .trait-hand{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+  .trait-card{position:relative; width:140px; background:var(--paper); color:#241f42; border:3px solid #000; box-shadow:4px 4px 0 rgba(0,0,0,0.5); padding:10px 8px 28px; cursor:pointer; display:flex; flex-direction:column; align-items:center; text-align:center;}
+  .trait-card:active{transform:translate(2px,2px); box-shadow:2px 2px 0 rgba(0,0,0,0.5);}
+  .trait-card.selected{border-color:var(--gold); box-shadow:4px 4px 0 var(--gold);}
+  .trait-card.mini{width:104px; padding:8px 6px 24px;}
+  .trait-card .corner{position:absolute; font-size:16px; line-height:1;}
+  .trait-card.mini .corner{font-size:13px;}
+  .trait-card .corner.tl{top:6px; left:7px;}
+  .trait-card .corner.br{bottom:6px; right:7px; transform:rotate(180deg);}
+  .trait-card .suit-big{font-size:32px; margin:16px 0 4px;}
+  .trait-card.mini .suit-big{font-size:24px; margin:12px 0 2px;}
+  .trait-card .card-title{font-family:'Press Start 2P',monospace; font-size:8px; line-height:1.5; min-height:24px; display:flex; align-items:center;}
+  .trait-card.mini .card-title{font-size:7px; min-height:20px;}
+  .trait-card .card-level{font-family:'Press Start 2P',monospace; font-size:7px; margin-top:6px; padding:2px 6px; border:2px solid #000;}
+  .trait-card .card-level.isnew{background:var(--green);}
+  .trait-card .card-level.islvl{background:var(--gold);}
+  .trait-card .card-desc{font-size:12px; color:#4a447a; margin-top:8px; line-height:1.3;}
   .progress-wrap{padding:10px 16px 0;}
   .progress-track{height:12px; background:#000; border:2px solid #000;}
   .progress-fill{height:100%; background:var(--gold);}
@@ -402,19 +419,25 @@ function maybeAssignIncentive(tier){
 
 /* Roguelike trait pool — offered at years 3/6/9/12, 3 random of 12, duplicates stack a level higher */
 const TRAIT_POOL = [
-  {key:"penalty", label:"PENALTY SPECIALIST", desc:lvl=>`+${lvl*10}% to your finishing output every season.`},
-  {key:"vision", label:"PLAYMAKER'S VISION", desc:lvl=>`+${lvl*10}% to your creative output every season.`},
-  {key:"wall", label:"BRICK WALL", desc:lvl=>`+${lvl*10}% to your defensive output every season.`},
-  {key:"media", label:"MEDIA DARLING", desc:lvl=>`+${lvl*10}% Hype every season, and better Golden Balloon odds.`},
-  {key:"leader", label:"LEADER", desc:lvl=>`Rating grows ${lvl*12}% faster every season.`},
-  {key:"biggame", label:"BIG GAME PLAYER", desc:lvl=>`+${lvl*6} Trophy% at every club, plus a stronger tournament carry.`},
-  {key:"setpiece", label:"SET PIECE THREAT", desc:lvl=>`+${lvl*12}% to your goals and assists totals.`},
-  {key:"fanfave", label:"FAN FAVOURITE", desc:lvl=>`+${(lvl*10)}% chance of Team of the Year selection.`},
-  {key:"clutch", label:"CLUTCH PERFORMER", desc:lvl=>`+${(lvl*5)}% Man of the Match rate.`},
-  {key:"bounceback", label:"BOUNCE-BACK", desc:lvl=>`A poor (D-grade) season costs ${Math.max(0,5-lvl*2)} Rating instead of 5.`},
-  {key:"ironman", label:"IRON MAN", desc:lvl=>`Plays ${lvl*2} years "younger" for Fitness-roll purposes.`},
-  {key:"lucky", label:"LUCKY CHARM", desc:lvl=>`Adds a Boost Die to every season roll, worth up to +${Math.round(lvl*15)}% form.`},
+  {key:"penalty", label:"PENALTY SPECIALIST", suit:"FIN", desc:lvl=>`+${lvl*10}% to your finishing output every season.`},
+  {key:"vision", label:"PLAYMAKER'S VISION", suit:"CRE", desc:lvl=>`+${lvl*10}% to your creative output every season.`},
+  {key:"wall", label:"BRICK WALL", suit:"DEF", desc:lvl=>`+${lvl*10}% to your defensive output every season.`},
+  {key:"media", label:"MEDIA DARLING", suit:"HYPE", desc:lvl=>`+${lvl*10}% Hype every season, and better Golden Balloon odds.`},
+  {key:"leader", label:"LEADER", suit:"HYPE", desc:lvl=>`Rating grows ${lvl*12}% faster every season.`},
+  {key:"biggame", label:"BIG GAME PLAYER", suit:"FIN", desc:lvl=>`+${lvl*6} Trophy% at every club, plus a stronger tournament carry.`},
+  {key:"setpiece", label:"SET PIECE THREAT", suit:"FIN", desc:lvl=>`+${lvl*12}% to your goals and assists totals.`},
+  {key:"fanfave", label:"FAN FAVOURITE", suit:"HYPE", desc:lvl=>`+${(lvl*10)}% chance of Team of the Year selection.`},
+  {key:"clutch", label:"CLUTCH PERFORMER", suit:"HYPE", desc:lvl=>`+${(lvl*5)}% Man of the Match rate.`},
+  {key:"bounceback", label:"BOUNCE-BACK", suit:"DEF", desc:lvl=>`A poor (D-grade) season costs ${Math.max(0,5-lvl*2)} Rating instead of 5.`},
+  {key:"ironman", label:"IRON MAN", suit:"DEF", desc:lvl=>`Plays ${lvl*2} years "younger" for Fitness-roll purposes.`},
+  {key:"lucky", label:"LUCKY CHARM", suit:"CRE", desc:lvl=>`Adds a Boost Die to every season roll, worth up to +${Math.round(lvl*15)}% form.`},
 ];
+const SUIT_META = {
+  FIN:{symbol:"♦", color:"#c92a3a"},
+  CRE:{symbol:"♣", color:"#7a3fd1"},
+  DEF:{symbol:"♠", color:"#2f6fb3"},
+  HYPE:{symbol:"♥", color:"#b8860b"},
+};
 function traitLevel(key){ return (state.traits && state.traits[key]) || 0; }
 const TRAIT_YEARS = [3,6,9,12];
 
@@ -1099,9 +1122,13 @@ function applySeason(offer, form, fitness, eventEffect, boostDieValue){
      A wider field of contenders exists too — not every year's award has to go to just these two.
      NOTE: seasonScore sums the raw stat gains directly — gainFIN/CRE/DEF already carry the position
      weight baked in from the calc above, so we must NOT multiply by pos.FIN/CRE/DEF again here (that
-     old double-count was quietly making this vote nearly unwinnable regardless of how well you played). */
+     old double-count was quietly making this vote nearly unwinnable regardless of how well you played).
+     rivalScore's talent multiplier (was 0.55) was still calibrated way above a typical seasonScore
+     (avg ~49 vs ~25 in sim), so the rival won ~8/15 years to the player's ~1.4 with a ~20-30% chance
+     of a full shutout across a career. 0.25 puts both sides' averages in the same range (sim: player
+     ~4.4/15, rival ~5.3/15, shutouts <1%) while still leaving the rival a slight edge as the threat. */
   const seasonScore = (gainFIN*0.6 + gainCRE*0.6 + gainDEF*0.6 + gainHYPE*0.5 + (trophyWon?18:0)) * (1 + traitLevel("media")*0.05);
-  let rivalScore = rival.talent * rivalPhaseMult * rivalPerf * 0.55;
+  let rivalScore = rival.talent * rivalPhaseMult * rivalPerf * 0.25;
   if(rivalTrophyWon) rivalScore += 18;
   const fieldScore = Math.max(seasonScore, rivalScore) * (0.55 + Math.random()*0.7);
   const topScore = Math.max(seasonScore, rivalScore, fieldScore);
@@ -1214,21 +1241,28 @@ function renderTraitDraft(s){
   const lead=document.createElement('p'); lead.className='lead'; lead.textContent="Permanent, stacks if you pick it again later.";
   s.appendChild(lead);
 
+  const hand=document.createElement('div'); hand.className='trait-hand';
   state.traitOptions.forEach(key=>{
     const trait = TRAIT_POOL.find(t=>t.key===key);
     const curLevel = traitLevel(key);
-    const el=document.createElement('div'); el.className='pick'; el.style.marginBottom='10px';
+    const suit = SUIT_META[trait.suit];
+    const el=document.createElement('div'); el.className='trait-card';
     el.innerHTML = `
-      <div class="px name">${trait.label} ${curLevel>0?`<span style="color:var(--gold);">LV${curLevel} → LV${curLevel+1}</span>`:'<span style="color:var(--green);">NEW</span>'}</div>
-      <div class="posnote">${trait.desc(curLevel+1)}</div>
+      <div class="corner tl" style="color:${suit.color};">${suit.symbol}</div>
+      <div class="corner br" style="color:${suit.color};">${suit.symbol}</div>
+      <div class="suit-big" style="color:${suit.color};">${suit.symbol}</div>
+      <div class="px card-title">${trait.label}</div>
+      <div class="card-level ${curLevel>0?'islvl':'isnew'}">${curLevel>0?`LV${curLevel}→${curLevel+1}`:'NEW'}</div>
+      <div class="card-desc">${trait.desc(curLevel+1)}</div>
     `;
     el.onclick = ()=>{
       state.traits[key] = curLevel+1;
       if(state.round >= TOTAL_ROUNDS) finalizeCareer();
       else { state.currentOffers = genOffers(); state.screen="draft"; render(); }
     };
-    s.appendChild(el);
+    hand.appendChild(el);
   });
+  s.appendChild(hand);
 }
 
 const LEGACY_CATEGORIES = [
@@ -1327,15 +1361,23 @@ function renderResults(s){
   const heldTraits = Object.keys(state.traits||{}).filter(k=>state.traits[k]>0);
   if(heldTraits.length){
     const h3tr=document.createElement('h3'); h3tr.className='px'; h3tr.textContent='TRAITS COLLECTED'; s.appendChild(h3tr);
-    const traitPanel=document.createElement('div'); traitPanel.className='pixel-panel';
+    const hand=document.createElement('div'); hand.className='trait-hand';
     heldTraits.forEach(key=>{
       const trait = TRAIT_POOL.find(t=>t.key===key);
       const lvl = state.traits[key];
-      const row=document.createElement('div'); row.style.marginBottom='8px';
-      row.innerHTML = `<span class="px" style="font-size:10px; color:var(--gold);">${trait.label} LV${lvl}</span><div style="font-size:14px; color:var(--dim); margin-top:2px;">${trait.desc(lvl)}</div>`;
-      traitPanel.appendChild(row);
+      const suit = SUIT_META[trait.suit];
+      const el=document.createElement('div'); el.className='trait-card mini';
+      el.innerHTML = `
+        <div class="corner tl" style="color:${suit.color};">${suit.symbol}</div>
+        <div class="corner br" style="color:${suit.color};">${suit.symbol}</div>
+        <div class="suit-big" style="color:${suit.color};">${suit.symbol}</div>
+        <div class="px card-title">${trait.label}</div>
+        <div class="card-level islvl">LV${lvl}</div>
+        <div class="card-desc">${trait.desc(lvl)}</div>
+      `;
+      hand.appendChild(el);
     });
-    s.appendChild(traitPanel);
+    s.appendChild(hand);
   }
 
   const h3b=document.createElement('h3'); h3b.className='px'; h3b.textContent='CAREER LOG'; s.appendChild(h3b);
